@@ -5508,7 +5508,7 @@ body.dark-mode #details-content-wrapper button:hover {
         <p>This application uses a modern database-driven approach for process management:</p>
         <ul>
             <li><strong>Automatic Data Loading:</strong> Process data is automatically loaded from the database when you access this page through the Project Manager.</li>
-            <li><strong>Project Manager:</strong> Use the main Project Manager (ProcessDiagramApp.html) to create, edit, and manage your processes and projects.</li>
+            <li><strong>Project Manager:</strong> Use the main Project Manager to create, edit, and manage your processes and projects.</li>
             <li><strong>Real-time Sync:</strong> All changes made in the diagram (adding processes, editing dependencies, etc.) are automatically saved to the database.</li>
             <li><strong>No Manual Import Needed:</strong> The old Excel import functions have been replaced with seamless database integration.</li>
         </ul>
@@ -6282,7 +6282,7 @@ let configColors = JSON.parse(JSON.stringify(THEMES[0]));    const expectedDiagr
     // Navigation event listeners
     document.getElementById('app-logo-header').addEventListener('click', () => {
         if (confirm('Are you sure you want to go back to the Home Page? Any unsaved changes in the diagram will be lost.')) {
-            window.location.href = 'ProcessDiagramApp.html';
+            window.location.href = 'index.html';
         }
     });
 
@@ -6291,7 +6291,7 @@ let configColors = JSON.parse(JSON.stringify(THEMES[0]));    const expectedDiagr
     document.getElementById('manage-columns-diagram-btn').addEventListener('click', () => {
         if (currentSheetId && currentSheetData) {
             // Redirect to ProcessDiagramApp.html with current sheet to manage columns
-            window.location.href = `ProcessDiagramApp.html?openSheet=${currentSheetId}&project=${currentProjectId}`;
+            window.location.href = `index.html?openSheet=${currentSheetId}&project=${currentProjectId}`;
         } else {
             showNotification('Please load a sheet first to manage its columns.', 'warning');
         }

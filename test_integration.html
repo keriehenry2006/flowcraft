@@ -537,7 +537,7 @@
 
                 <div class="auth-switch">
                     <span>New to the system? </span>
-                    <a href="ProcessDiagramApp.html">Request Access</a>
+                    <a href="index.html">Request Access</a>
         </div>
     </div>
         </div>
@@ -551,7 +551,7 @@
 
     <!-- Navigation Links -->
     <div style="position: fixed; bottom: 30px; left: 30px; display: flex; gap: 16px;">
-        <a href="ProcessDiagramApp.html" style="color: var(--fc-neon-primary); text-decoration: none; font-size: 12px; text-transform: uppercase; font-weight: 600; letter-spacing: 1px;">
+        <a href="index.html" style="color: var(--fc-neon-primary); text-decoration: none; font-size: 12px; text-transform: uppercase; font-weight: 600; letter-spacing: 1px;">
             Project Manager
         </a>
         <a href="Diagram.html" style="color: var(--fc-neon-secondary); text-decoration: none; font-size: 12px; text-transform: uppercase; font-weight: 600; letter-spacing: 1px;">
@@ -559,6 +559,9 @@
         </a>
     </div>
 
+    <!-- Error Handler Library -->
+    <script src="flowcraft-error-handler.js"></script>
+    
     <script>
         // Create floating particles
         function createParticles() {
@@ -598,24 +601,52 @@
             document.documentElement.style.scrollBehavior = 'smooth';
         });
 
-        // Form handling with futuristic feedback
-        document.querySelector('form').addEventListener('submit', function(e) {
+        // Enhanced form handling with error handling
+        document.querySelector('form').addEventListener('submit', async function(e) {
             e.preventDefault();
             
             const button = this.querySelector('.btn-login');
             const originalText = button.textContent;
+            const email = this.querySelector('#email').value;
+            const password = this.querySelector('#password').value;
             
-            button.textContent = 'AUTHENTICATING...';
-            button.style.background = 'linear-gradient(135deg, var(--fc-neon-accent) 0%, var(--fc-neon-warning) 100%)';
-            
-            setTimeout(() => {
+            try {
+                // Validate inputs
+                window.FlowCraftErrorHandler.validateEmail(email);
+                window.FlowCraftErrorHandler.validatePassword(password);
+                
+                button.textContent = 'AUTHENTICATING...';
+                button.style.background = 'linear-gradient(135deg, var(--fc-neon-accent) 0%, var(--fc-neon-warning) 100%)';
+                
+                // Simulate authentication with proper error handling
+                await new Promise((resolve, reject) => {
+                    setTimeout(() => {
+                        // Simulate random success/failure for demo
+                        if (Math.random() > 0.3) { // 70% success rate
+                            resolve();
+                        } else {
+                            reject(new Error('Invalid credentials. Please check your email and password.'));
+                        }
+                    }, 2000);
+                });
+                
                 button.textContent = 'ACCESS GRANTED';
                 button.style.background = 'linear-gradient(135deg, var(--fc-neon-success) 0%, var(--fc-neon-primary) 100%)';
                 
+                window.FlowCraftErrorHandler.showNotification('Login successful! Redirecting...', 'success');
+                
                 setTimeout(() => {
-                    window.location.href = 'ProcessDiagramApp.html';
+                    window.location.href = 'index.html';
                 }, 1000);
-            }, 2000);
+                
+            } catch (error) {
+                // Reset button state
+                button.textContent = originalText;
+                button.style.background = 'linear-gradient(135deg, var(--fc-neon-primary) 0%, var(--fc-neon-secondary) 100%)';
+                
+                // Handle and display error
+                window.FlowCraftErrorHandler.handleError(error);
+            }
         });
 
         // Delikatna animacja logo co 10 sekund

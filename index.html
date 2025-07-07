@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FlowCraft - Project Manager</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="flowcraft-error-handler.js"></script>
     <style>
         * {
             margin: 0;
@@ -1955,10 +1956,13 @@
                     </div>
                     <div class="form-group">
                         <label for="login-password">Password</label>
-                                <input type="password" id="login-password" placeholder="••••••••••••" required>
+                        <input type="password" id="login-password" placeholder="••••••••••••" required>
                     </div>
-                            <button type="submit" class="btn-fc btn-fc-primary btn-fc-full">
-                                <span class="btn-text">Initialize Session</span>
+                    <div style="text-align: right; margin-bottom: 15px;">
+                        <a href="#" id="forgot-password" style="color: var(--fc-neon-primary); text-decoration: none; font-size: 14px;">Forgot Password?</a>
+                    </div>
+                    <button type="submit" class="btn-fc btn-fc-primary btn-fc-full">
+                        <span class="btn-text">Initialize Session</span>
                         <div class="loading hidden"></div>
                     </button>
                 </form>
@@ -1972,7 +1976,7 @@
                 <form id="register-form-element">
                     <div class="form-group">
                         <label for="register-name">Full Name</label>
-                                <input type="text" id="register-name" placeholder="Full Name" required>
+                                <input type="text" id="register-name" placeholder="Full Name" required minlength="2" maxlength="100" pattern="[A-Za-z\s]+" title="Full name should contain only letters and spaces, 2-100 characters">
                     </div>
                     <div class="form-group">
                                 <label for="register-email">Email Address</label>
@@ -2100,7 +2104,7 @@
             <form id="project-form">
                 <div class="form-group">
                     <label for="project-name">Project Name</label>
-                    <input type="text" id="project-name" required>
+                    <input type="text" id="project-name" required minlength="2" maxlength="100" title="Project name should be 2-100 characters long">
                 </div>
                 <div class="form-group">
                     <label for="project-description">Description</label>
@@ -2121,7 +2125,7 @@
             <form id="sheet-form">
                 <div class="form-group">
                     <label for="sheet-name">Sheet Name</label>
-                    <input type="text" id="sheet-name" required>
+                    <input type="text" id="sheet-name" required minlength="2" maxlength="100" title="Sheet name should be 2-100 characters long">
                 </div>
                 <div class="form-group">
                     <label for="sheet-description">Description</label>
@@ -2156,7 +2160,7 @@
             <form id="process-form">
                 <div class="form-group">
                     <label for="process-short-name">Process Name (ID)</label>
-                    <input type="text" id="process-short-name" required placeholder="e.g., START, SETUP, CHECK">
+                    <input type="text" id="process-short-name" required minlength="1" maxlength="50" pattern="[A-Z0-9_-]+" title="Process name should contain only uppercase letters, numbers, hyphens and underscores, 1-50 characters" placeholder="e.g., START, SETUP, CHECK">
                 </div>
                 <div class="form-group">
                     <label for="process-description">Description</label>
@@ -2164,16 +2168,16 @@
                 </div>
                 <div class="form-group">
                     <label for="process-working-day">Working Day</label>
-                    <input type="number" id="process-working-day" value="1" required placeholder="e.g., -5, 1, 15 (cannot be 0)">
+                    <input type="number" id="process-working-day" value="1" required min="-31" max="31" step="1" title="Working day: 1-31 for current month, -1 to -31 for previous month (0 not allowed)" placeholder="e.g., -5, 1, 15 (cannot be 0)">
                     <small style="color: var(--text-muted); font-size: 12px; margin-top: 4px; display: block;">Negative values indicate previous month working days. Cannot be 0.</small>
                 </div>
                 <div class="form-group">
                     <label for="process-due-time">Due Time (HH:MM format)</label>
-                    <input type="text" id="process-due-time" placeholder="e.g., 08:30, 14:00" pattern="^([01]?[0-9]|2[0-3]):[0-5][0-9]$">
+                    <input type="text" id="process-due-time" placeholder="e.g., 08:30, 14:00" pattern="^([01]?[0-9]|2[0-3]):[0-5][0-9]$" title="Time format: HH:MM (24-hour format, e.g., 08:30, 14:00)">
                 </div>
                 <div class="form-group">
                     <label for="process-dependencies">Dependencies</label>
-                    <input type="text" id="process-dependencies" placeholder="e.g., START,SETUP (comma-separated)">
+                    <input type="text" id="process-dependencies" placeholder="e.g., START,SETUP (comma-separated)" pattern="^[A-Z0-9_-]+(,[A-Z0-9_-]+)*$|^$" title="Dependencies should be comma-separated process names (e.g., START,SETUP)">
                 </div>
                 <div class="form-group">
                     <label for="process-type">Process Type</label>
@@ -2249,11 +2253,14 @@
             toDelete: [],
             toRename: []
         };
+        let resetEmailTimer = null;
+        let signupEmailTimer = null;
 
         // Initialize app
         document.addEventListener('DOMContentLoaded', async () => {
             await checkAuthState();
             setupEventListeners();
+            setupFormValidation();
             initAuthDesign();
         });
 
@@ -2477,38 +2484,54 @@
             const btnText = btn.querySelector('.btn-text');
             const loading = btn.querySelector('.loading');
             
-            // FlowCraft 2025 Auth Animation
-            const originalText = btnText.textContent;
-            btnText.textContent = 'AUTHENTICATING...';
-            btn.style.background = 'linear-gradient(135deg, var(--fc-neon-accent) 0%, var(--fc-neon-warning) 100%)';
-            
-            btnText.classList.add('hidden');
-            loading.classList.remove('hidden');
-
             const email = document.getElementById('login-email').value;
             const password = document.getElementById('login-password').value;
+            
+            try {
+                // Validate inputs
+                window.FlowCraftErrorHandler.validateEmail(email);
+                window.FlowCraftErrorHandler.validatePassword(password);
+                
+                // FlowCraft 2025 Auth Animation
+                const originalText = btnText.textContent;
+                btnText.textContent = 'AUTHENTICATING...';
+                btn.style.background = 'linear-gradient(135deg, var(--fc-neon-accent) 0%, var(--fc-neon-warning) 100%)';
+                
+                btnText.classList.add('hidden');
+                loading.classList.remove('hidden');
 
-            const { data, error } = await supabaseClient.auth.signInWithPassword({
-                email, password
-            });
+                // Enhanced login with error handling
+                const result = await window.FlowCraftErrorHandler.executeSupabaseRequest(
+                    () => supabaseClient.auth.signInWithPassword({ email, password }),
+                    { 
+                        showLoading: false, // We handle UI ourselves
+                        maxRetries: 2 
+                    }
+                );
 
-            if (error) {
-                showNotification(error.message, 'error');
-                btnText.textContent = originalText;
-                btn.style.background = 'linear-gradient(135deg, var(--fc-neon-primary) 0%, var(--fc-neon-secondary) 100%)';
-            } else {
                 btnText.textContent = 'ACCESS GRANTED';
                 btn.style.background = 'linear-gradient(135deg, var(--fc-neon-success) 0%, var(--fc-neon-primary) 100%)';
                 
+                window.FlowCraftErrorHandler.showNotification('Login successful!', 'success');
+                
                 setTimeout(() => {
-                currentUser = data.user;
-                showDashboard();
-                loadProjects();
+                    currentUser = result.data.user;
+                    showDashboard();
+                    loadProjects();
                 }, 1000);
-            }
 
-            btnText.classList.remove('hidden');
-            loading.classList.add('hidden');
+            } catch (error) {
+                // Reset button state
+                const originalText = btnText.textContent === 'AUTHENTICATING...' ? 'LOGIN' : btnText.textContent;
+                btnText.textContent = originalText;
+                btn.style.background = 'linear-gradient(135deg, var(--fc-neon-primary) 0%, var(--fc-neon-secondary) 100%)';
+                
+                // Handle and display error
+                window.FlowCraftErrorHandler.handleError(error);
+            } finally {
+                btnText.classList.remove('hidden');
+                loading.classList.add('hidden');
+            }
         }
 
         async function handleRegister(e) {
@@ -2517,43 +2540,98 @@
             const btnText = btn.querySelector('.btn-text');
             const loading = btn.querySelector('.loading');
             
-            // FlowCraft 2025 Auth Animation
-            const originalText = btnText.textContent;
-            btnText.textContent = 'CREATING ACCOUNT...';
-            btn.style.background = 'linear-gradient(135deg, var(--fc-neon-accent) 0%, var(--fc-neon-warning) 100%)';
-            
-            btnText.classList.add('hidden');
-            loading.classList.remove('hidden');
+            if (signupEmailTimer) {
+                showNotification(`Please wait ${signupEmailTimer} seconds before trying to register again`, 'warning');
+                return;
+            }
 
             const name = document.getElementById('register-name').value;
             const email = document.getElementById('register-email').value;
             const password = document.getElementById('register-password').value;
 
-            const { data, error } = await supabaseClient.auth.signUp({
-                email, password,
-                options: {
-                    data: { full_name: name }
+            try {
+                // Validate inputs
+                if (!name || !name.trim()) {
+                    throw new Error('Full name is required');
                 }
-            });
+                if (name.trim().length < 2) {
+                    throw new Error('Full name must be at least 2 characters long');
+                }
+                window.FlowCraftErrorHandler.validateEmail(email);
+                window.FlowCraftErrorHandler.validatePassword(password);
+                
+                // FlowCraft 2025 Auth Animation
+                const originalText = btnText.textContent;
+                btnText.textContent = 'CREATING ACCOUNT...';
+                btn.style.background = 'linear-gradient(135deg, var(--fc-neon-accent) 0%, var(--fc-neon-warning) 100%)';
+                
+                btnText.classList.add('hidden');
+                loading.classList.remove('hidden');
 
-            if (error) {
-                showNotification(error.message, 'error');
-                btnText.textContent = originalText;
-                btn.style.background = 'linear-gradient(135deg, var(--fc-neon-primary) 0%, var(--fc-neon-secondary) 100%)';
-            } else {
+                // Enhanced registration with error handling
+                const result = await window.FlowCraftErrorHandler.executeSupabaseRequest(
+                    () => supabaseClient.auth.signUp({
+                        email, 
+                        password,
+                        options: {
+                            data: { full_name: name.trim() }
+                        }
+                    }),
+                    { 
+                        showLoading: false, // We handle UI ourselves
+                        maxRetries: 1  // Don't retry registration
+                    }
+                );
+
                 btnText.textContent = 'ACCOUNT CREATED';
                 btn.style.background = 'linear-gradient(135deg, var(--fc-neon-success) 0%, var(--fc-neon-primary) 100%)';
                 
                 setTimeout(() => {
-                showNotification('Account created! Please check your email to verify.', 'success');
-                // Switch to login form
-                document.getElementById('register-form').classList.add('hidden');
-                document.getElementById('login-form').classList.remove('hidden');
+                    window.FlowCraftErrorHandler.showNotification('Account created! Please check your email to verify.', 'success');
+                    // Switch to login form
+                    document.getElementById('register-form').classList.add('hidden');
+                    document.getElementById('login-form').classList.remove('hidden');
+                    // Clear form
+                    document.getElementById('register-name').value = '';
+                    document.getElementById('register-email').value = '';
+                    document.getElementById('register-password').value = '';
                 }, 1000);
-            }
 
-            btnText.classList.remove('hidden');
-            loading.classList.add('hidden');
+            } catch (error) {
+                // Handle rate limiting specially
+                if (error.message && error.message.includes('rate limit')) {
+                    // Start 60 second timer
+                    let timeLeft = 60;
+                    signupEmailTimer = timeLeft;
+                    
+                    const countdownInterval = setInterval(() => {
+                        timeLeft -= 1;
+                        signupEmailTimer = timeLeft;
+                        btnText.textContent = `WAIT ${timeLeft}s`;
+                        
+                        if (timeLeft <= 0) {
+                            clearInterval(countdownInterval);
+                            signupEmailTimer = null;
+                            btnText.textContent = 'REGISTER';
+                            btn.style.background = 'linear-gradient(135deg, var(--fc-neon-primary) 0%, var(--fc-neon-secondary) 100%)';
+                        }
+                    }, 1000);
+
+                    window.FlowCraftErrorHandler.showNotification('Please wait a minute before trying to register again', 'warning');
+                } else {
+                    // Reset button state
+                    btnText.textContent = 'REGISTER';
+                    btn.style.background = 'linear-gradient(135deg, var(--fc-neon-primary) 0%, var(--fc-neon-secondary) 100%)';
+                    
+                    // Handle and display error
+                    window.FlowCraftErrorHandler.handleError(error);
+                }
+            } finally {
+                if (!signupEmailTimer) {
+                    btnText.classList.remove('hidden');
+                    loading.classList.add('hidden');
+                }
+            }
         }
 
         async function handleLogout() {
@@ -2613,24 +2691,52 @@
 
         // Project management
         async function loadProjects() {
-            const { data: projects, error } = await supabaseClient
-                .from('projects')
-                .select('*')
-                .eq('user_id', currentUser.id)
-                .order('created_at', { ascending: false });
+            try {
+                const result = await window.FlowCraftErrorHandler.executeSupabaseRequest(
+                    () => supabaseClient
+                        .from('projects')
+                        .select('*')
+                        .eq('user_id', currentUser.id)
+                        .order('created_at', { ascending: false }),
+                    { 
+                        loadingMessage: 'Loading projects...'
+                    }
+                );
 
-            if (error) {
-                showNotification('Error loading projects', 'error');
-                return;
+                const grid = document.getElementById('projects-grid');
+                grid.innerHTML = '';
+
+                if (result.data && result.data.length > 0) {
+                    result.data.forEach(project => {
+                        const card = createProjectCard(project);
+                        grid.appendChild(card);
+                    });
+                } else {
+                    // Show empty state
+                    grid.innerHTML = `
+                        <div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px; color: var(--fc-text-muted);">
+                            <div style="font-size: 48px; margin-bottom: 16px;">📋</div>
+                            <h3 style="color: var(--fc-text-secondary); margin-bottom: 8px;">No Projects Yet</h3>
+                            <p>Create your first project to get started</p>
+                        </div>
+                    `;
+                }
+
+            } catch (error) {
+                window.FlowCraftErrorHandler.handleError(error);
+                // Show error state in grid
+                const grid = document.getElementById('projects-grid');
+                grid.innerHTML = `
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px; color: var(--fc-text-muted);">
+                        <div style="font-size: 48px; margin-bottom: 16px;">⚠️</div>
+                        <h3 style="color: var(--fc-neon-secondary); margin-bottom: 8px;">Failed to Load Projects</h3>
+                        <p>Please check your connection and try again</p>
+                        <button onclick="loadProjects()" style="margin-top: 16px; padding: 8px 16px; background: var(--fc-neon-primary); color: var(--fc-dark-primary); border: none; cursor: pointer;">
+                            Retry
+                        </button>
+                    </div>
+                `;
             }
-
-            const grid = document.getElementById('projects-grid');
-            grid.innerHTML = '';
-
-            projects.forEach(project => {
-                const card = createProjectCard(project);
-                grid.appendChild(card);
-            });
         }
 
         function createProjectCard(project) {
@@ -2969,56 +3075,66 @@
         async function handleSaveProcess(e) {
             e.preventDefault();
             
-            const workingDayValue = parseInt(document.getElementById('process-working-day').value);
-            
-            // Validate Working Day cannot be 0
-            if (workingDayValue === 0) {
-                showNotification('Working Day cannot be 0. Use positive numbers for current month or negative for previous month.', 'error');
-                return;
-            }
-            
-            const formData = {
-                short_name: document.getElementById('process-short-name').value,
-                description: document.getElementById('process-description').value,
-                working_day: workingDayValue || 1,
-                due_time: document.getElementById('process-due-time').value || null,
-                dependencies: document.getElementById('process-dependencies').value || '',
-                process_type: document.getElementById('process-type').value,
-                sheet_id: currentSheet.id
-            };
-
-            // Collect custom fields
-            const customData = {};
-            document.querySelectorAll('.custom-field').forEach(input => {
-                const fieldName = input.dataset.field;
-                customData[fieldName] = input.value;
-            });
-            formData.custom_data = customData;
-
             try {
-                let result;
-                if (editingProcess) {
-                    result = await supabaseClient
+                const workingDayValue = parseInt(document.getElementById('process-working-day').value);
+                
+                // Enhanced validation using error handler
+                const formData = {
+                    short_name: document.getElementById('process-short-name').value?.trim(),
+                    description: document.getElementById('process-description').value?.trim(),
+                    working_day: workingDayValue || 1,
+                    due_time: document.getElementById('process-due-time').value?.trim() || null,
+                    dependencies: document.getElementById('process-dependencies').value?.trim() || '',
+                    process_type: document.getElementById('process-type').value,
+                    sheet_id: currentSheet.id
+                };
+
+                // Validate process data
+                window.FlowCraftErrorHandler.validateProcessData(formData);
+                
+                // Validate Working Day cannot be 0
+                if (workingDayValue === 0) {
+                    throw new Error('Working Day cannot be 0. Use positive numbers for current month or negative for previous month.');
+                }
+
+                // Collect custom fields with sanitization
+                const customData = {};
+                document.querySelectorAll('.custom-field').forEach(input => {
+                    const fieldName = input.dataset.field;
+                    const value = window.FlowCraftErrorHandler.sanitizeInput(input.value?.trim() || '');
+                    if (value) {
+                        customData[fieldName] = value;
+                    }
+                });
+                formData.custom_data = customData;
+
+                // Execute save operation with error handling
+                const operation = editingProcess ? 
+                    () => supabaseClient
                         .from('processes')
                         .update(formData)
-                        .eq('id', editingProcess.id);
-                } else {
-                    result = await supabaseClient
+                        .eq('id', editingProcess.id) :
+                    () => supabaseClient
                         .from('processes')
                         .insert([formData]);
-                }
 
-                if (result.error) {
-                    showNotification('Error saving process', 'error');
-                    console.error('Error:', result.error);
-                } else {
-                    showNotification(editingProcess ? 'Process updated!' : 'Process created!', 'success');
-                    closeModals();
-                    loadProcesses();
-                }
+                await window.FlowCraftErrorHandler.executeSupabaseRequest(
+                    operation,
+                    { 
+                        loadingMessage: editingProcess ? 'Updating process...' : 'Creating process...'
+                    }
+                );
+
+                window.FlowCraftErrorHandler.showNotification(
+                    editingProcess ? 'Process updated successfully!' : 'Process created successfully!', 
+                    'success'
+                );
+                
+                closeModals();
+                loadProcesses();
+
             } catch (error) {
-                showNotification('Error saving process', 'error');
-                console.error('Error:', error);
+                window.FlowCraftErrorHandler.handleError(error);
             }
         }
 
@@ -3329,7 +3445,88 @@
             }
         }
 
+        // Real-time validation
+        function setupFormValidation() {
+            // Add real-time validation to all forms
+            const forms = document.querySelectorAll('form');
+            forms.forEach(form => {
+                form.addEventListener('input', function(e) {
+                    if (e.target.validity.valid) {
+                        e.target.style.borderColor = 'var(--fc-neon-success)';
+                        e.target.style.boxShadow = '0 0 10px rgba(57, 255, 20, 0.3)';
+                    } else if (e.target.value.length > 0) {
+                        e.target.style.borderColor = 'var(--fc-neon-secondary)';
+                        e.target.style.boxShadow = '0 0 10px rgba(255, 0, 110, 0.3)';
+                    } else {
+                        e.target.style.borderColor = 'var(--fc-border)';
+                        e.target.style.boxShadow = 'none';
+                    }
+                });
 
+                form.addEventListener('invalid', function(e) {
+                    e.preventDefault();
+                    window.FlowCraftErrorHandler.showNotification(
+                        e.target.validationMessage || 'Please check your input',
+                        'validation'
+                    );
+                }, true);
+            });
+
+            // Custom validation for working day field
+            const workingDayField = document.getElementById('process-working-day');
+            if (workingDayField) {
+                workingDayField.addEventListener('input', function() {
+                    const value = parseInt(this.value);
+                    if (value === 0) {
+                        this.setCustomValidity('Working day cannot be 0');
+                    } else {
+                        this.setCustomValidity('');
+                    }
+                });
+            }
+        }
+
+        // Event Listeners
+        document.getElementById('login-form-element').addEventListener('submit', handleLogin);
+        document.getElementById('register-form-element').addEventListener('submit', handleRegister);
+        document.getElementById('show-register').addEventListener('click', () => {
+            document.getElementById('login-form').classList.add('hidden');
+            document.getElementById('register-form').classList.remove('hidden');
+        });
+        document.getElementById('show-login').addEventListener('click', () => {
+            document.getElementById('register-form').classList.add('hidden');
+            document.getElementById('login-form').classList.remove('hidden');
+        });
+
+        // Add forgot password handler
+        document.getElementById('forgot-password').addEventListener('click', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            
+            if (!email) {
+                showNotification('Please enter your email address first', 'error');
+                return;
+            }
+
+            try {
+                const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+                    redirectTo: `${window.location.origin}/reset.html`
+                });
+
+                if (error) {
+                    if (error.message.includes('rate limit')) {
+                        showNotification('Please wait a minute before requesting another password reset email', 'warning');
+                    } else {
+                        showNotification(error.message, 'error');
+                    }
+                } else {
+                    showNotification('Password reset instructions have been sent to your email', 'success');
+                }
+            } catch (err) {
+                showNotification('An error occurred while processing your request', 'error');
+                console.error('Password reset error:', err);
+            }
+        });
 
     </script>
 </body>
