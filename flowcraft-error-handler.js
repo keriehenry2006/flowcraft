@@ -162,9 +162,55 @@ class FlowCraftErrorHandler {
         if (!password || !password.trim()) {
             throw new Error('Password is required');
         }
-        if (password.length < 6) {
-            throw new Error('Password must be at least 6 characters long');
+        
+        // Enhanced password policy
+        const minLength = 12;
+        const errors = [];
+        
+        if (password.length < minLength) {
+            errors.push(`Password must be at least ${minLength} characters long`);
         }
+        
+        if (!/[a-z]/.test(password)) {
+            errors.push('Password must contain at least one lowercase letter');
+        }
+        
+        if (!/[A-Z]/.test(password)) {
+            errors.push('Password must contain at least one uppercase letter');
+        }
+        
+        if (!/[0-9]/.test(password)) {
+            errors.push('Password must contain at least one number');
+        }
+        
+        if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+            errors.push('Password must contain at least one special character');
+        }
+        
+        // Check for common weak passwords
+        const weakPasswords = [
+            'password', 'flowcraft', '123456', 'qwerty', 'admin', 'user',
+            'password123', 'admin123', 'flowcraft123', 'test123'
+        ];
+        
+        if (weakPasswords.includes(password.toLowerCase())) {
+            errors.push('Password is too common. Please choose a stronger password');
+        }
+        
+        // Check for sequential characters
+        if (/(?:abc|bcd|cde|def|efg|fgh|ghi|hij|ijk|jkl|klm|lmn|mno|nop|opq|pqr|qrs|rst|stu|tuv|uvw|vwx|wxy|xyz|123|234|345|456|567|678|789)/i.test(password)) {
+            errors.push('Password should not contain sequential characters');
+        }
+        
+        // Check for repeated characters
+        if (/(.)\1{2,}/.test(password)) {
+            errors.push('Password should not contain repeated characters');
+        }
+        
+        if (errors.length > 0) {
+            throw new Error(errors.join('. '));
+        }
+        
         return true;
     }
 
@@ -455,14 +501,67 @@ class FlowCraftErrorHandler {
     }
 
     /**
-     * Sanitize input to prevent XSS
+     * Enhanced HTML escaping to prevent XSS attacks
+     * More comprehensive than the basic sanitizeInput
+     */
+    escapeHtml(unsafe) {
+        if (typeof unsafe !== 'string') return unsafe;
+        
+        return unsafe
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#x27;")
+            .replace(/\//g, "&#x2F;");
+    }
+
+    /**
+     * Sanitize input to prevent XSS (enhanced version)
      */
     sanitizeInput(input) {
         if (typeof input !== 'string') return input;
         
-        const div = document.createElement('div');
-        div.textContent = input;
-        return div.innerHTML;
+        // Use the enhanced HTML escaping
+        return this.escapeHtml(input);
+    }
+
+    /**
+     * Safe innerHTML replacement - creates DOM elements safely
+     */
+    safeSetInnerHTML(element, htmlContent) {
+        if (!element) return;
+        
+        // Clear existing content
+        element.innerHTML = '';
+        
+        // Create a temporary container
+        const temp = document.createElement('div');
+        temp.innerHTML = htmlContent;
+        
+        // Move sanitized content to target element
+        while (temp.firstChild) {
+            element.appendChild(temp.firstChild);
+        }
+    }
+
+    /**
+     * Create safe HTML element with escaped content
+     */
+    createSafeElement(tagName, textContent, attributes = {}) {
+        const element = document.createElement(tagName);
+        
+        // Set text content safely
+        if (textContent) {
+            element.textContent = textContent;
+        }
+        
+        // Set attributes safely
+        Object.entries(attributes).forEach(([key, value]) => {
+            element.setAttribute(key, this.escapeHtml(value.toString()));
+        });
+        
+        return element;
     }
 
     /**
@@ -511,6 +610,140 @@ class FlowCraftErrorHandler {
         }
         
         window.location.href = 'index.html';
+    }
+
+    /**
+     * CSRF Protection - Add CSRF token to forms
+     */
+    addCSRFToken(form) {
+        if (!form || !window.FlowCraftCSRF) return;
+        
+        // Remove existing CSRF token if any
+        const existingToken = form.querySelector('input[name="csrf_token"]');
+        if (existingToken) {
+            existingToken.remove();
+        }
+        
+        // Add new CSRF token
+        const tokenInput = document.createElement('input');
+        tokenInput.type = 'hidden';
+        tokenInput.name = 'csrf_token';
+        tokenInput.value = window.FlowCraftCSRF.getToken();
+        form.appendChild(tokenInput);
+    }
+
+    /**
+     * Validate CSRF token
+     */
+    validateCSRFToken(token) {
+        if (!window.FlowCraftCSRF) return false;
+        return window.FlowCraftCSRF.validateToken(token);
+    }
+
+    /**
+     * Rate limiting check for authentication attempts
+     */
+    checkRateLimit(identifier, type = 'login') {
+        if (!window.FlowCraftRateLimit) return true;
+        
+        const config = window.FlowCraftConfig?.security?.rateLimit || {};
+        let maxAttempts, lockoutDuration;
+        
+        switch (type) {
+            case 'login':
+                maxAttempts = config.maxLoginAttempts || 5;
+                lockoutDuration = config.lockoutDuration || 15 * 60 * 1000;
+                break;
+            case 'password_reset':
+                maxAttempts = config.maxPasswordResetAttempts || 3;
+                lockoutDuration = config.passwordResetCooldown || 5 * 60 * 1000;
+                break;
+            default:
+                maxAttempts = 5;
+                lockoutDuration = 15 * 60 * 1000;
+        }
+        
+        if (window.FlowCraftRateLimit.isLocked(identifier)) {
+            const remaining = Math.ceil((window.FlowCraftRateLimit.lockouts.get(identifier) - Date.now()) / 1000 / 60);
+            throw new Error(`Too many attempts. Try again in ${remaining} minutes.`);
+        }
+        
+        return window.FlowCraftRateLimit.recordAttempt(identifier, maxAttempts, lockoutDuration);
+    }
+
+    /**
+     * Clear rate limit for successful authentication
+     */
+    clearRateLimit(identifier) {
+        if (window.FlowCraftRateLimit) {
+            window.FlowCraftRateLimit.clearAttempts(identifier);
+        }
+    }
+
+    /**
+     * Enhanced form validation with security checks
+     */
+    validateForm(form) {
+        if (!form) return false;
+        
+        // Check CSRF token
+        const csrfToken = form.querySelector('input[name="csrf_token"]');
+        if (!csrfToken || !this.validateCSRFToken(csrfToken.value)) {
+            throw new Error('Security validation failed. Please refresh the page and try again.');
+        }
+        
+        // Validate all inputs
+        const inputs = form.querySelectorAll('input, textarea, select');
+        for (const input of inputs) {
+            if (input.required && !input.value.trim()) {
+                throw new Error(`${input.name || 'Field'} is required`);
+            }
+            
+            // Sanitize input values
+            if (input.type === 'text' || input.type === 'email' || input.tagName === 'TEXTAREA') {
+                input.value = this.sanitizeInput(input.value);
+            }
+        }
+        
+        return true;
+    }
+
+    /**
+     * Session timeout management
+     */
+    initSessionTimeout(timeoutMinutes = 30) {
+        let timeoutId;
+        let warningShown = false;
+        
+        const resetTimeout = () => {
+            clearTimeout(timeoutId);
+            warningShown = false;
+            
+            timeoutId = setTimeout(() => {
+                if (!warningShown) {
+                    warningShown = true;
+                    const extend = confirm('Your session will expire in 5 minutes. Do you want to extend it?');
+                    if (extend) {
+                        resetTimeout();
+                        return;
+                    }
+                }
+                
+                // Auto logout
+                this.showNotification('Session expired. Please login again.', 'warning');
+                setTimeout(() => {
+                    window.location.href = 'index.html';
+                }, 3000);
+            }, timeoutMinutes * 60 * 1000);
+        };
+        
+        // Reset timeout on user activity
+        ['click', 'keypress', 'scroll', 'mousemove'].forEach(event => {
+            document.addEventListener(event, resetTimeout, { passive: true });
+        });
+        
+        // Initial timeout
+        resetTimeout();
     }
 }
 

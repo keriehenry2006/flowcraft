@@ -7,6 +7,14 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <script src="flowcraft-error-handler.js"></script>
+    
+    <!-- Security Headers -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://*.supabase.co;">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+    <meta name="csrf-token" content=""><!-- CSRF token will be set by JavaScript -->
     <style>
         :root {
             /* FlowCraft 2025 Futuristic Palette */
@@ -5662,12 +5670,12 @@ body.dark-mode #details-content-wrapper button:hover {
     const deleteViewConfigDropdown = document.getElementById('delete-view-config-dropdown');
 
     // Supabase Configuration
-    const SUPABASE_URL = 'https://hbwnghrfhyikcywixjqn.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhid25naHJmaHlpa2N5d2l4anFuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEyMjE4MzMsImV4cCI6MjA2Njc5NzgzM30.IOEcWblDku7LlmfsEzF0j39rkyFhcJQWEm6TsFpNv2w';
+    // Secure Supabase configuration
+    const supabaseConfig = window.FlowCraftSecurity.getSupabaseConfig();
     
     // Initialize Supabase client
     const { createClient } = supabase;
-    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const supabaseClient = createClient(supabaseConfig.url, supabaseConfig.anonKey);
 
     // Get URL parameters for new project/sheet system
     const urlParams = new URLSearchParams(window.location.search);
@@ -6725,7 +6733,7 @@ window.addEventListener('click', (event) => {
         simulationPanel.classList.remove('open');
     }
 });
-    diagramContainer.addEventListener('wheel', (e) => { e.preventDefault(); zoom(e.deltaY > 0 ? 0.9 : 1.1, e); });
+    diagramContainer.addEventListener('wheel', (e) => { e.preventDefault(); zoom(e.deltaY > 0 ? 0.9 : 1.1, e); }, { passive: false });
 
 
 
@@ -9969,8 +9977,16 @@ function renderDiagram() {
 
     function updateStickyAxesContainerPositions() {
         if (!stickyAxisInitialized || !stickyYAxisContainer || !stickyXAxisContainer || !diagramContainer) return;
-        let dcRect; if (document.body.classList.contains('presentation-mode')) { dcRect = { top: topBarHeight, left: 0, right: window.innerWidth, bottom: window.innerHeight, width: window.innerWidth, height: window.innerHeight - topBarHeight }; } else { dcRect = diagramContainer.getBoundingClientRect(); }
-        const dcStyle = window.getComputedStyle(diagramContainer);
+        
+        // Batch DOM reads first to avoid forced reflow
+        let dcRect, dcStyle;
+        if (document.body.classList.contains('presentation-mode')) { 
+            dcRect = { top: topBarHeight, left: 0, right: window.innerWidth, bottom: window.innerHeight, width: window.innerWidth, height: window.innerHeight - topBarHeight }; 
+            dcStyle = { borderTopWidth: '0px', borderLeftWidth: '0px', borderRightWidth: '0px', borderBottomWidth: '0px' };
+        } else { 
+            dcRect = diagramContainer.getBoundingClientRect(); 
+            dcStyle = window.getComputedStyle(diagramContainer);
+        }
         const dcBorderTopWidth = document.body.classList.contains('presentation-mode') ? 0 : (parseFloat(dcStyle.borderTopWidth) || 0);
         const dcBorderLeftWidth = document.body.classList.contains('presentation-mode') ? 0 : (parseFloat(dcStyle.borderLeftWidth) || 0);
         const dcBorderRightWidth = document.body.classList.contains('presentation-mode') ? 0 :(parseFloat(dcStyle.borderRightWidth) || 0);
@@ -10005,8 +10021,15 @@ function renderDiagram() {
         }
         stickyYAxisContainer.innerHTML = ''; stickyXAxisContainer.innerHTML = '';
         const scrollTop = diagramContainer.scrollTop; const scrollLeft = diagramContainer.scrollLeft;
-        let dcRect; if (document.body.classList.contains('presentation-mode')) { dcRect = { top: topBarHeight, left: 0 }; } else { dcRect = diagramContainer.getBoundingClientRect(); }
-        const dcStyle = window.getComputedStyle(diagramContainer);
+        // Batch DOM reads to avoid forced reflow
+        let dcRect, dcStyle;
+        if (document.body.classList.contains('presentation-mode')) { 
+            dcRect = { top: topBarHeight, left: 0 }; 
+            dcStyle = { borderTopWidth: '0px', borderLeftWidth: '0px' };
+        } else { 
+            dcRect = diagramContainer.getBoundingClientRect(); 
+            dcStyle = window.getComputedStyle(diagramContainer);
+        }
         const dcBorderTopWidth = document.body.classList.contains('presentation-mode') ? 0 : (parseFloat(dcStyle.borderTopWidth) || 0);
         const dcBorderLeftWidth = document.body.classList.contains('presentation-mode') ? 0 : (parseFloat(dcStyle.borderLeftWidth) || 0);
         const stickyYContainerViewportTop = parseFloat(stickyYAxisContainer.style.top) || 0;

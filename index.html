@@ -4,7 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FlowCraft - Project Manager</title>
+    
+    <!-- Security Headers -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://*.supabase.co;">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+    <meta name="csrf-token" content=""><!-- CSRF token will be set by JavaScript -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
     <script src="flowcraft-error-handler.js"></script>
     <style>
         * {
@@ -1956,7 +1963,7 @@
                     </div>
                     <div class="form-group">
                         <label for="login-password">Password</label>
-                        <input type="password" id="login-password" placeholder="••••••••••••" required>
+                        <input type="password" id="login-password" placeholder="••••••••••••" autocomplete="current-password" required>
                     </div>
                     <div style="text-align: right; margin-bottom: 15px;">
                         <a href="#" id="forgot-password" style="color: var(--fc-neon-primary); text-decoration: none; font-size: 14px;">Forgot Password?</a>
@@ -1984,7 +1991,7 @@
                     </div>
                     <div class="form-group">
                         <label for="register-password">Password</label>
-                                <input type="password" id="register-password" placeholder="••••••••••••" required minlength="6">
+                                <input type="password" id="register-password" placeholder="••••••••••••" autocomplete="new-password" required minlength="12">
                     </div>
                             <button type="submit" class="btn-fc btn-fc-primary btn-fc-full">
                         <span class="btn-text">Create Account</span>
@@ -2238,10 +2245,9 @@
     </div>
 
     <script>
-        // Supabase configuration
-        const SUPABASE_URL = 'https://hbwnghrfhyikcywixjqn.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhid25naHJmaHlpa2N5d2l4anFuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEyMjE4MzMsImV4cCI6MjA2Njc5NzgzM30.IOEcWblDku7LlmfsEzF0j39rkyFhcJQWEm6TsFpNv2w';
-        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        // Secure Supabase configuration
+        const supabaseConfig = window.FlowCraftSecurity.getSupabaseConfig();
+        const supabaseClient = window.supabase.createClient(supabaseConfig.url, supabaseConfig.anonKey);
 
         // Global state
         let currentUser = null;
@@ -2258,11 +2264,35 @@
 
         // Initialize app
         document.addEventListener('DOMContentLoaded', async () => {
+            // Initialize security features
+            initSecurity();
             await checkAuthState();
             setupEventListeners();
             setupFormValidation();
             initAuthDesign();
         });
+
+        // Initialize security features
+        function initSecurity() {
+            // Add CSRF tokens to all forms
+            const forms = document.querySelectorAll('form');
+            forms.forEach(form => {
+                window.FlowCraftErrorHandler.addCSRFToken(form);
+            });
+            
+            // Initialize session timeout
+            window.FlowCraftErrorHandler.initSessionTimeout(30);
+            
+            // Validate configuration
+            if (!window.FlowCraftSecurity.validateConfiguration()) {
+                window.FlowCraftErrorHandler.showNotification(
+                    'Security configuration error. Please contact administrator.', 
+                    'error'
+                );
+            }
+            
+            console.log('FlowCraft Security initialized');
+        }
 
         // Initialize auth screen design elements
         function initAuthDesign() {
@@ -2488,9 +2518,16 @@
             const password = document.getElementById('login-password').value;
             
             try {
-                // Validate inputs
+                // Enhanced security validation
+                window.FlowCraftErrorHandler.validateForm(e.target);
                 window.FlowCraftErrorHandler.validateEmail(email);
-                window.FlowCraftErrorHandler.validatePassword(password);
+                
+                // Rate limiting check
+                window.FlowCraftErrorHandler.checkRateLimit(email, 'login');
+                
+                // Sanitize inputs
+                const sanitizedEmail = window.FlowCraftErrorHandler.sanitizeInput(email);
+                const sanitizedPassword = window.FlowCraftErrorHandler.sanitizeInput(password);
                 
                 // FlowCraft 2025 Auth Animation
                 const originalText = btnText.textContent;
@@ -2500,15 +2537,21 @@
                 btnText.classList.add('hidden');
                 loading.classList.remove('hidden');
 
-                // Enhanced login with error handling
+                // Enhanced login with error handling using sanitized inputs
                 const result = await window.FlowCraftErrorHandler.executeSupabaseRequest(
-                    () => supabaseClient.auth.signInWithPassword({ email, password }),
+                    () => supabaseClient.auth.signInWithPassword({ 
+                        email: sanitizedEmail, 
+                        password: sanitizedPassword 
+                    }),
                     { 
                         showLoading: false, // We handle UI ourselves
                         maxRetries: 2 
                     }
                 );
 
+                // Clear rate limit on successful login
+                window.FlowCraftErrorHandler.clearRateLimit(sanitizedEmail);
+                
                 btnText.textContent = 'ACCESS GRANTED';
                 btn.style.background = 'linear-gradient(135deg, var(--fc-neon-success) 0%, var(--fc-neon-primary) 100%)';
                 
@@ -2550,15 +2593,27 @@
             const password = document.getElementById('register-password').value;
 
             try {
-                // Validate inputs
+                // Enhanced security validation
+                window.FlowCraftErrorHandler.validateForm(e.target);
+                
+                // Rate limiting check for registration
+                window.FlowCraftErrorHandler.checkRateLimit(email, 'register');
+                
+                // Validate and sanitize inputs
                 if (!name || !name.trim()) {
                     throw new Error('Full name is required');
                 }
                 if (name.trim().length < 2) {
                     throw new Error('Full name must be at least 2 characters long');
                 }
+                
                 window.FlowCraftErrorHandler.validateEmail(email);
                 window.FlowCraftErrorHandler.validatePassword(password);
+                
+                // Sanitize inputs
+                const sanitizedName = window.FlowCraftErrorHandler.sanitizeInput(name);
+                const sanitizedEmail = window.FlowCraftErrorHandler.sanitizeInput(email);
+                const sanitizedPassword = window.FlowCraftErrorHandler.sanitizeInput(password);
                 
                 // FlowCraft 2025 Auth Animation
                 const originalText = btnText.textContent;
@@ -2568,13 +2623,13 @@
                 btnText.classList.add('hidden');
                 loading.classList.remove('hidden');
 
-                // Enhanced registration with error handling
+                // Enhanced registration with error handling using sanitized inputs
                 const result = await window.FlowCraftErrorHandler.executeSupabaseRequest(
                     () => supabaseClient.auth.signUp({
-                        email, 
-                        password,
+                        email: sanitizedEmail, 
+                        password: sanitizedPassword,
                         options: {
-                            data: { full_name: name.trim() }
+                            data: { full_name: sanitizedName.trim() }
                         }
                     }),
                     { 
@@ -2582,6 +2637,9 @@
                         maxRetries: 1  // Don't retry registration
                     }
                 );
+                
+                // Clear rate limit on successful registration
+                window.FlowCraftErrorHandler.clearRateLimit(sanitizedEmail);
 
                 btnText.textContent = 'ACCOUNT CREATED';
                 btn.style.background = 'linear-gradient(135deg, var(--fc-neon-success) 0%, var(--fc-neon-primary) 100%)';
@@ -2742,16 +2800,36 @@
         function createProjectCard(project) {
             const card = document.createElement('div');
             card.className = 'project-card';
-            card.innerHTML = `
-                <div class="project-header">
-                    <h3 class="project-name">${project.name}</h3>
-                </div>
-                <p class="project-description">${project.description || 'No description'}</p>
-                <div class="project-stats">
-                    <span>📊 Sheets: ${project.sheet_count || 0}</span>
-                    <span>📅 ${new Date(project.created_at).toLocaleDateString()}</span>
-                </div>
-            `;
+            
+            // Create safe DOM elements instead of innerHTML
+            const projectHeader = document.createElement('div');
+            projectHeader.className = 'project-header';
+            
+            const projectName = document.createElement('h3');
+            projectName.className = 'project-name';
+            projectName.textContent = project.name; // Safe text content
+            projectHeader.appendChild(projectName);
+            
+            const projectDescription = document.createElement('p');
+            projectDescription.className = 'project-description';
+            projectDescription.textContent = project.description || 'No description'; // Safe text content
+            
+            const projectStats = document.createElement('div');
+            projectStats.className = 'project-stats';
+            
+            const sheetsSpan = document.createElement('span');
+            sheetsSpan.textContent = `📊 Sheets: ${project.sheet_count || 0}`;
+            
+            const dateSpan = document.createElement('span');
+            dateSpan.textContent = `📅 ${new Date(project.created_at).toLocaleDateString()}`;
+            
+            projectStats.appendChild(sheetsSpan);
+            projectStats.appendChild(dateSpan);
+            
+            card.appendChild(projectHeader);
+            card.appendChild(projectDescription);
+            card.appendChild(projectStats);
+            
             card.addEventListener('click', () => showSheetsView(project));
             return card;
         }
@@ -2806,13 +2884,28 @@
         function createSheetCard(sheet) {
             const card = document.createElement('div');
             card.className = 'sheet-card';
-            card.innerHTML = `
-                <h3 style="margin-bottom: 16px; font-size: 20px; font-weight: 700; color: var(--fc-text-primary); text-transform: uppercase; letter-spacing: 1px; position: relative; z-index: 2; margin: 0 0 16px 0;">${sheet.name}</h3>
-                <p style="color: var(--fc-text-secondary); margin-bottom: 20px; line-height: 1.6; font-size: 14px; position: relative; z-index: 2;">${sheet.description || 'No description'}</p>
-                <div style="font-size: 13px; color: var(--fc-text-muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; position: relative; z-index: 2;">
-                    <span style="display: flex; align-items: center; gap: 6px;">🔧 Custom Fields: ${Object.keys(sheet.custom_fields || {}).length}</span>
-                </div>
-            `;
+            
+            // Create safe DOM elements instead of innerHTML
+            const title = document.createElement('h3');
+            title.style.cssText = 'margin-bottom: 16px; font-size: 20px; font-weight: 700; color: var(--fc-text-primary); text-transform: uppercase; letter-spacing: 1px; position: relative; z-index: 2; margin: 0 0 16px 0;';
+            title.textContent = sheet.name; // Safe text content
+            
+            const description = document.createElement('p');
+            description.style.cssText = 'color: var(--fc-text-secondary); margin-bottom: 20px; line-height: 1.6; font-size: 14px; position: relative; z-index: 2;';
+            description.textContent = sheet.description || 'No description'; // Safe text content
+            
+            const stats = document.createElement('div');
+            stats.style.cssText = 'font-size: 13px; color: var(--fc-text-muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; position: relative; z-index: 2;';
+            
+            const statsSpan = document.createElement('span');
+            statsSpan.style.cssText = 'display: flex; align-items: center; gap: 6px;';
+            statsSpan.textContent = `🔧 Custom Fields: ${Object.keys(sheet.custom_fields || {}).length}`;
+            
+            stats.appendChild(statsSpan);
+            card.appendChild(title);
+            card.appendChild(description);
+            card.appendChild(stats);
+            
             card.addEventListener('click', () => openProcesses(sheet));
             return card;
         }
