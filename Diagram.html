@@ -5042,6 +5042,238 @@ body.dark-mode #details-content-wrapper button:hover {
     #details-action-buttons h4 {
         display: none;
     }
+}
+
+/* =====================================================
+   PROCESS STATUS VISUALIZATION STYLES
+   ===================================================== */
+
+/* Status indicator - subtle border effect */
+.status-indicator {
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    border-radius: 0; /* Brutalist design */
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* Status icon - positioned in top-right corner */
+.status-icon {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: bold;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    z-index: 2;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Status-specific indicator styles */
+.status-completed-on-time {
+    border: 2px solid var(--fc-neon-success);
+    box-shadow: 0 0 10px rgba(57, 255, 20, 0.3);
+}
+
+.status-completed-late {
+    border: 2px solid var(--fc-neon-warning);
+    box-shadow: 0 0 10px rgba(255, 190, 11, 0.3);
+}
+
+.status-overdue {
+    border: 2px solid var(--fc-neon-secondary);
+    box-shadow: 0 0 10px rgba(255, 0, 110, 0.3);
+    animation: pulse-border 2s infinite;
+}
+
+.status-delayed {
+    border: 2px solid var(--fc-neon-warning);
+    box-shadow: 0 0 10px rgba(255, 190, 11, 0.2);
+}
+
+.status-pending {
+    border: 2px solid var(--fc-border);
+}
+
+/* Status-specific icon styles */
+.status-icon-completed {
+    background: var(--fc-neon-success);
+    color: var(--fc-dark-primary);
+}
+
+.status-icon-completed-late {
+    background: var(--fc-neon-warning);
+    color: var(--fc-dark-primary);
+}
+
+.status-icon-overdue {
+    background: var(--fc-neon-secondary);
+    color: var(--fc-text-primary);
+    animation: pulse-icon 2s infinite;
+}
+
+.status-icon-delayed {
+    background: var(--fc-neon-warning);
+    color: var(--fc-dark-primary);
+}
+
+.status-icon-pending {
+    background: var(--fc-surface);
+    color: var(--fc-text-muted);
+    border: 1px solid var(--fc-border);
+}
+
+/* Hover effects */
+.status-icon:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Animations for overdue processes */
+@keyframes pulse-red {
+    0% { box-shadow: 0 0 15px rgba(255, 0, 110, 0.5); }
+    50% { box-shadow: 0 0 25px rgba(255, 0, 110, 0.8); }
+    100% { box-shadow: 0 0 15px rgba(255, 0, 110, 0.5); }
+}
+
+@keyframes pulse-border {
+    0% { border-color: var(--fc-neon-secondary); }
+    50% { border-color: rgba(255, 0, 110, 0.8); }
+    100% { border-color: var(--fc-neon-secondary); }
+}
+
+@keyframes pulse-icon {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+/* Dark mode adjustments */
+body.dark-mode .status-icon {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+body.dark-mode .status-icon:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
+}
+
+body.dark-mode .status-icon-pending {
+    background: var(--fc-dark-secondary);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Process status modal styles */
+.process-status-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+
+.process-status-modal-content {
+    background: var(--fc-surface);
+    border: 2px solid var(--fc-border);
+    border-radius: 0; /* Brutalist */
+    padding: 32px;
+    max-width: 500px;
+    width: 90%;
+    box-shadow: var(--fc-shadow-brutal);
+}
+
+.process-status-modal h3 {
+    color: var(--fc-text-primary);
+    margin-bottom: 24px;
+    font-size: 20px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.status-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.status-action-btn {
+    padding: 12px 20px;
+    border: 2px solid var(--fc-border);
+    background: var(--fc-dark-secondary);
+    color: var(--fc-text-primary);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 600;
+}
+
+.status-action-btn:hover {
+    background: var(--fc-neon-primary);
+    color: var(--fc-dark-primary);
+}
+
+.status-action-btn.completed {
+    border-color: var(--fc-neon-success);
+}
+
+.status-action-btn.completed:hover {
+    background: var(--fc-neon-success);
+}
+
+.status-action-btn.delayed {
+    border-color: var(--fc-neon-warning);
+}
+
+.status-action-btn.delayed:hover {
+    background: var(--fc-neon-warning);
+}
+
+.status-note-input {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid var(--fc-border);
+    background: var(--fc-dark-secondary);
+    color: var(--fc-text-primary);
+    margin-top: 12px;
+    resize: vertical;
+    min-height: 80px;
+}
+
+.status-note-input:focus {
+    outline: none;
+    border-color: var(--fc-neon-primary);
+}
+
+/* Small screen adjustments */
+@media (max-width: 768px) {
+    .status-icon {
+        width: 16px;
+        height: 16px;
+        font-size: 10px;
+        top: 2px;
+        right: 2px;
+    }
+    
+    .process-status-modal-content {
+        padding: 24px;
+        margin: 20px;
+    }
 }    </style>
 </head>
 <body>
@@ -7373,6 +7605,89 @@ function updateTopBarHeight() {
 
     // MODYFIKACJA START: Zaktualizowana funkcja createNodeElement
     // MODYFIKACJA START: Zaktualizowana funkcja createNodeElement
+    // Add process status visualization
+    function addProcessStatusVisualization(node, processData) {
+        const status = processData.status || 'PENDING';
+        
+        // Remove existing status elements
+        const existingStatusElements = node.querySelectorAll('.status-indicator, .status-icon');
+        existingStatusElements.forEach(el => el.remove());
+        
+        // Create status indicator
+        const statusIndicator = document.createElement('div');
+        statusIndicator.className = 'status-indicator';
+        
+        // Create status icon
+        const statusIcon = document.createElement('div');
+        statusIcon.className = 'status-icon';
+        
+        // Apply status-specific styling
+        switch (status) {
+            case 'COMPLETED_ON_TIME':
+                statusIndicator.className += ' status-completed-on-time';
+                statusIcon.innerHTML = '✓';
+                statusIcon.className += ' status-icon-completed';
+                node.style.boxShadow = '0 0 15px rgba(57, 255, 20, 0.5)';
+                break;
+                
+            case 'COMPLETED_LATE':
+                statusIndicator.className += ' status-completed-late';
+                statusIcon.innerHTML = '✓';
+                statusIcon.className += ' status-icon-completed-late';
+                node.style.boxShadow = '0 0 15px rgba(255, 190, 11, 0.5)';
+                break;
+                
+            case 'OVERDUE':
+                statusIndicator.className += ' status-overdue';
+                statusIcon.innerHTML = '⚠';
+                statusIcon.className += ' status-icon-overdue';
+                node.style.boxShadow = '0 0 15px rgba(255, 0, 110, 0.5)';
+                node.style.animation = 'pulse-red 2s infinite';
+                break;
+                
+            case 'DELAYED_WITH_REASON':
+                statusIndicator.className += ' status-delayed';
+                statusIcon.innerHTML = '⏱';
+                statusIcon.className += ' status-icon-delayed';
+                node.style.boxShadow = '0 0 15px rgba(255, 190, 11, 0.4)';
+                break;
+                
+            case 'PENDING':
+            default:
+                statusIndicator.className += ' status-pending';
+                statusIcon.innerHTML = '○';
+                statusIcon.className += ' status-icon-pending';
+                break;
+        }
+        
+        // Add completion note tooltip if available
+        if (processData.completion_note) {
+            statusIcon.title = `Status: ${status.replace('_', ' ')}\nNote: ${processData.completion_note}`;
+        } else {
+            statusIcon.title = `Status: ${status.replace('_', ' ')}`;
+        }
+        
+        // Add assigned user info if available
+        if (processData.assigned_to_email) {
+            statusIcon.title += `\nAssigned to: ${processData.assigned_to_email}`;
+        }
+        
+        // Add due date info if available
+        if (processData.due_date) {
+            statusIcon.title += `\nDue date: ${processData.due_date}`;
+        }
+        
+        // Add status elements to node
+        node.appendChild(statusIndicator);
+        node.appendChild(statusIcon);
+        
+        // Add click handler for status management
+        statusIcon.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openProcessStatusModal(processData);
+        });
+    }
+    
     function createNodeElement(processData, layout) { 
         const node = document.createElement('div');
         node.className = 'process-node';
@@ -7431,6 +7746,9 @@ function updateTopBarHeight() {
 
         node.style.width = `${layout.width || NODE_BASE_WIDTH}px`; 
         node.style.height = `${layout.height || NODE_HEIGHT}px`; 
+        
+        // Add status visualization
+        addProcessStatusVisualization(node, processData);
         
         return node;
     }
@@ -13066,6 +13384,168 @@ async function initializeApplication() {
     } else {
         initLogoAnimation();
     }
+
+    // =====================================================
+    // PROCESS STATUS MANAGEMENT FUNCTIONS
+    // =====================================================
+
+    // Open process status modal
+    function openProcessStatusModal(processData) {
+        // Remove existing modal if any
+        const existingModal = document.getElementById('process-status-modal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+
+        // Create modal
+        const modal = document.createElement('div');
+        modal.id = 'process-status-modal';
+        modal.className = 'process-status-modal';
+
+        const modalContent = document.createElement('div');
+        modalContent.className = 'process-status-modal-content';
+
+        const currentStatus = processData.status || 'PENDING';
+        const isDueDatePassed = processData.due_date && new Date(processData.due_date) < new Date();
+
+        modalContent.innerHTML = `
+            <h3>Manage Process Status</h3>
+            <div style="margin-bottom: 16px;">
+                <strong>Process:</strong> ${processData['Short name']} (${processData.ID})<br>
+                <strong>Current Status:</strong> ${currentStatus.replace('_', ' ')}<br>
+                <strong>Due Date:</strong> ${processData.due_date || 'Not set'}<br>
+                ${processData.assigned_to_email ? `<strong>Assigned to:</strong> ${processData.assigned_to_email}<br>` : ''}
+            </div>
+            
+            <div class="status-actions">
+                <button class="status-action-btn completed" onclick="updateProcessStatus('${processData.ID}', 'COMPLETED_ON_TIME')">
+                    ✓ Mark as Completed On Time
+                </button>
+                <button class="status-action-btn completed" onclick="updateProcessStatus('${processData.ID}', 'COMPLETED_LATE')">
+                    ✓ Mark as Completed Late
+                </button>
+                <button class="status-action-btn delayed" onclick="toggleDelayedForm('${processData.ID}')">
+                    ⏱ Mark as Delayed with Reason
+                </button>
+                ${currentStatus !== 'PENDING' ? `
+                    <button class="status-action-btn" onclick="updateProcessStatus('${processData.ID}', 'PENDING')">
+                        ○ Reset to Pending
+                    </button>
+                ` : ''}
+            </div>
+            
+            <div id="delayed-form" style="display: none; margin-top: 16px;">
+                <label for="delay-reason">Reason for delay:</label>
+                <textarea id="delay-reason" class="status-note-input" placeholder="Please provide a reason for the delay..."></textarea>
+                <div style="margin-top: 12px;">
+                    <button class="status-action-btn delayed" onclick="updateProcessStatus('${processData.ID}', 'DELAYED_WITH_REASON', document.getElementById('delay-reason').value)">
+                        Save Delay Reason
+                    </button>
+                    <button class="status-action-btn" onclick="toggleDelayedForm('${processData.ID}')">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+            
+            <div style="margin-top: 24px; display: flex; gap: 12px; justify-content: flex-end;">
+                <button class="btn-fc btn-fc-secondary" onclick="closeProcessStatusModal()">Close</button>
+            </div>
+        `;
+
+        modal.appendChild(modalContent);
+        document.body.appendChild(modal);
+
+        // Close modal when clicking outside
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeProcessStatusModal();
+            }
+        });
+
+        // Focus on modal
+        modal.style.display = 'flex';
+    }
+
+    // Close process status modal
+    function closeProcessStatusModal() {
+        const modal = document.getElementById('process-status-modal');
+        if (modal) {
+            modal.remove();
+        }
+    }
+
+    // Toggle delayed form
+    function toggleDelayedForm(processId) {
+        const form = document.getElementById('delayed-form');
+        if (form) {
+            form.style.display = form.style.display === 'none' ? 'block' : 'none';
+            if (form.style.display === 'block') {
+                document.getElementById('delay-reason').focus();
+            }
+        }
+    }
+
+    // Update process status
+    async function updateProcessStatus(processId, newStatus, note = '') {
+        try {
+            const completedLate = newStatus === 'COMPLETED_LATE';
+            
+            let result;
+            if (newStatus === 'COMPLETED_ON_TIME' || newStatus === 'COMPLETED_LATE') {
+                result = await window.FlowCraftErrorHandler.markProcessCompleted(processId, note, completedLate);
+            } else if (newStatus === 'DELAYED_WITH_REASON') {
+                if (!note.trim()) {
+                    showNotification('Please provide a reason for the delay', 'error');
+                    return;
+                }
+                result = await window.FlowCraftErrorHandler.markProcessDelayed(processId, note);
+            } else {
+                // Reset to pending or other status
+                result = await window.FlowCraftErrorHandler.executeSupabaseRequest(
+                    () => window.supabaseClient
+                        .from('processes')
+                        .update({
+                            status: newStatus,
+                            completed_at: null,
+                            completion_note: null
+                        })
+                        .eq('id', processId),
+                    { loadingMessage: 'Updating status...' }
+                );
+            }
+
+            if (result.data) {
+                showNotification(`Process status updated to ${newStatus.replace('_', ' ')}`, 'success');
+                closeProcessStatusModal();
+                
+                // Update the process data in memory
+                const allProcs = getAllProcessesFromData();
+                const process = allProcs.find(p => p.ID === processId);
+                if (process) {
+                    process.status = newStatus;
+                    process.completion_note = note;
+                    if (newStatus.includes('COMPLETED')) {
+                        process.completed_at = new Date().toISOString();
+                    }
+                }
+                
+                // Re-render the diagram to show updated status
+                renderDiagram();
+            } else {
+                showNotification('Failed to update process status', 'error');
+            }
+        } catch (error) {
+            showNotification(error.message, 'error');
+            console.error('Status update error:', error);
+        }
+    }
+
+    // Keyboard shortcut for ESC to close modal
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closeProcessStatusModal();
+        }
+    });
 
 </script>
 <div class="page-footer">

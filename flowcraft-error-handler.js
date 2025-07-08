@@ -745,6 +745,534 @@ class FlowCraftErrorHandler {
         // Initial timeout
         resetTimeout();
     }
+
+    // =====================================================
+    // PROJECT SHARING AND COLLABORATION API
+    // =====================================================
+
+    /**
+     * Invite user to project
+     */
+    async inviteUserToProject(projectId, email, role = 'VIEW_ONLY') {
+        const validRoles = ['FULL_ACCESS', 'EDIT_ACCESS', 'VIEW_ONLY'];
+        if (!validRoles.includes(role)) {
+            throw new Error('Invalid role. Must be one of: FULL_ACCESS, EDIT_ACCESS, VIEW_ONLY');
+        }
+
+        if (!this.validateEmail(email)) {
+            throw new Error('Invalid email address');
+        }
+
+        // Generate invitation token
+        const invitationToken = this.generateInvitationToken();
+        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+        return await this.executeSupabaseRequest(
+            () => window.supabaseClient.from('project_invitations').insert({
+                project_id: projectId,
+                email: email,
+                role: role,
+                invitation_token: invitationToken,
+                expires_at: expiresAt.toISOString()
+            }),
+            { loadingMessage: 'Sending invitation...' }
+        );
+    }
+
+    /**
+     * Get project members
+     */
+    async getProjectMembers(projectId) {
+        return await this.executeSupabaseRequest(
+            () => window.supabaseClient
+                .from('project_members')
+                .select(`
+                    *,
+                    user:user_id (email),
+                    invited_by_user:invited_by (email)
+                `)
+                .eq('project_id', projectId),
+            { loadingMessage: 'Loading members...' }
+        );
+    }
+
+    /**
+     * Get project invitations
+     */
+    async getProjectInvitations(projectId) {
+        return await this.executeSupabaseRequest(
+            () => window.supabaseClient
+                .from('project_invitations')
+                .select(`
+                    *,
+                    invited_by_user:invited_by (email)
+                `)
+                .eq('project_id', projectId)
+                .neq('status', 'ACCEPTED'),
+            { loadingMessage: 'Loading invitations...' }
+        );
+    }
+
+    /**
+     * Accept project invitation
+     */
+    async acceptInvitation(invitationToken) {
+        // Get current user
+        const { data: { user }, error: userError } = await window.supabaseClient.auth.getUser();
+        
+        if (userError || !user) {
+            throw new Error('Authentication required');
+        }
+
+        // First get the invitation details
+        const invitationResult = await this.executeSupabaseRequest(
+            () => window.supabaseClient
+                .from('project_invitations')
+                .select('*')
+                .eq('invitation_token', invitationToken)
+                .eq('status', 'PENDING')
+                .single(),
+            { loadingMessage: 'Validating invitation...' }
+        );
+
+        if (!invitationResult.data) {
+            throw new Error('Invalid or expired invitation');
+        }
+
+        const invitation = invitationResult.data;
+
+        // Check if invitation is expired
+        if (new Date(invitation.expires_at) < new Date()) {
+            throw new Error('Invitation has expired');
+        }
+
+        // Add user to project members
+        const memberResult = await this.executeSupabaseRequest(
+            () => window.supabaseClient.from('project_members').insert({
+                project_id: invitation.project_id,
+                user_id: user.id,
+                role: invitation.role,
+                invited_by: invitation.invited_by
+            }),
+            { loadingMessage: 'Accepting invitation...' }
+        );
+
+        // Update invitation status
+        await this.executeSupabaseRequest(
+            () => window.supabaseClient
+                .from('project_invitations')
+                .update({
+                    status: 'ACCEPTED',
+                    accepted_at: new Date().toISOString()
+                })
+                .eq('id', invitation.id),
+            { showLoading: false }
+        );
+
+        return memberResult;
+    }
+
+    /**
+     * Remove project member
+     */
+    async removeProjectMember(projectId, userId) {
+        return await this.executeSupabaseRequest(
+            () => window.supabaseClient
+                .from('project_members')
+                .delete()
+                .eq('project_id', projectId)
+                .eq('user_id', userId),
+            { loadingMessage: 'Removing member...' }
+        );
+    }
+
+    /**
+     * Update member role
+     */
+    async updateMemberRole(projectId, userId, newRole) {
+        const validRoles = ['FULL_ACCESS', 'EDIT_ACCESS', 'VIEW_ONLY'];
+        if (!validRoles.includes(newRole)) {
+            throw new Error('Invalid role');
+        }
+
+        return await this.executeSupabaseRequest(
+            () => window.supabaseClient
+                .from('project_members')
+                .update({ role: newRole })
+                .eq('project_id', projectId)
+                .eq('user_id', userId),
+            { loadingMessage: 'Updating role...' }
+        );
+    }
+
+    /**
+     * Check user access to project
+     */
+    async checkProjectAccess(projectId) {
+        // Get current user
+        const { data: { user }, error: userError } = await window.supabaseClient.auth.getUser();
+        
+        if (userError || !user) {
+            return { role: null, isOwner: false, hasAccess: false };
+        }
+
+        const result = await this.executeSupabaseRequest(
+            () => window.supabaseClient
+                .from('project_members')
+                .select('role')
+                .eq('project_id', projectId)
+                .eq('user_id', user.id)
+                .single(),
+            { showLoading: false }
+        );
+
+        // Also check if user is the owner
+        const ownerResult = await this.executeSupabaseRequest(
+            () => window.supabaseClient
+                .from('projects')
+                .select('user_id')
+                .eq('id', projectId)
+                .eq('user_id', user.id)
+                .single(),
+            { showLoading: false }
+        );
+
+        if (ownerResult.data) {
+            return { role: 'OWNER', isOwner: true, hasAccess: true };
+        }
+
+        return { 
+            role: result.data?.role || null, 
+            isOwner: false,
+            hasAccess: !!result.data
+        };
+    }
+
+    // =====================================================
+    // WORKING CALENDAR API
+    // =====================================================
+
+    /**
+     * Get working calendar for month
+     */
+    async getWorkingCalendar(year, month) {
+        return await this.executeSupabaseRequest(
+            () => window.supabaseClient
+                .from('working_calendar')
+                .select('*')
+                .eq('year', year)
+                .eq('month', month)
+                .single(),
+            { loadingMessage: 'Loading calendar...' }
+        );
+    }
+
+    /**
+     * Generate working calendar for month
+     */
+    async generateWorkingCalendar(year, month) {
+        // Call the PostgreSQL function to calculate working days
+        const result = await this.executeSupabaseRequest(
+            () => window.supabaseClient.rpc('calculate_working_days', { 
+                target_year: year, 
+                target_month: month 
+            }),
+            { loadingMessage: 'Generating calendar...' }
+        );
+
+        // Insert or update the working calendar
+        const calendarData = {
+            year: year,
+            month: month,
+            working_days_json: result.data,
+            holidays_json: []
+        };
+
+        return await this.executeSupabaseRequest(
+            () => window.supabaseClient
+                .from('working_calendar')
+                .upsert(calendarData)
+                .select(),
+            { showLoading: false }
+        );
+    }
+
+    /**
+     * Get actual date for working day
+     */
+    async getActualDateForWorkingDay(workingDay, year, month) {
+        return await this.executeSupabaseRequest(
+            () => window.supabaseClient.rpc('get_actual_date_for_working_day', {
+                wd: workingDay,
+                target_year: year,
+                target_month: month
+            }),
+            { showLoading: false }
+        );
+    }
+
+    /**
+     * Update process due dates based on working calendar
+     */
+    async updateProcessDueDates(sheetId, year, month) {
+        // Get all processes for the sheet
+        const processesResult = await this.executeSupabaseRequest(
+            () => window.supabaseClient
+                .from('processes')
+                .select('*')
+                .eq('sheet_id', sheetId),
+            { loadingMessage: 'Loading processes...' }
+        );
+
+        if (!processesResult.data || processesResult.data.length === 0) {
+            return { message: 'No processes found' };
+        }
+
+        // Update each process with calculated due date
+        const updatePromises = processesResult.data.map(async (process) => {
+            if (process.working_day !== null && process.working_day !== 0) {
+                const actualDate = await this.getActualDateForWorkingDay(
+                    process.working_day, 
+                    year, 
+                    month
+                );
+
+                if (actualDate.data) {
+                    let dueDatetime = new Date(actualDate.data);
+                    
+                    // Add due_time if specified
+                    if (process.due_time) {
+                        const timeParts = process.due_time.split(':');
+                        dueDatetime.setHours(parseInt(timeParts[0]), parseInt(timeParts[1]));
+                    }
+
+                    return this.executeSupabaseRequest(
+                        () => window.supabaseClient
+                            .from('processes')
+                            .update({
+                                due_date: actualDate.data,
+                                actual_due_datetime: dueDatetime.toISOString()
+                            })
+                            .eq('id', process.id),
+                        { showLoading: false }
+                    );
+                }
+            }
+            return null;
+        });
+
+        await Promise.all(updatePromises);
+        return { message: 'Process due dates updated successfully' };
+    }
+
+    // =====================================================
+    // PROCESS STATUS TRACKING API
+    // =====================================================
+
+    /**
+     * Mark process as completed
+     */
+    async markProcessCompleted(processId, note = '', completedLate = false) {
+        const currentTime = new Date().toISOString();
+        const status = completedLate ? 'COMPLETED_LATE' : 'COMPLETED_ON_TIME';
+        
+        // Get current user
+        const { data: { user } } = await window.supabaseClient.auth.getUser();
+        const userId = user?.id;
+
+        // Update process status
+        const result = await this.executeSupabaseRequest(
+            () => window.supabaseClient
+                .from('processes')
+                .update({
+                    status: status,
+                    completed_at: currentTime,
+                    completion_note: note
+                })
+                .eq('id', processId)
+                .select(),
+            { loadingMessage: 'Marking as completed...' }
+        );
+
+        // Record status change in history
+        await this.executeSupabaseRequest(
+            () => window.supabaseClient
+                .from('process_status_history')
+                .insert({
+                    process_id: processId,
+                    old_status: 'PENDING',
+                    new_status: status,
+                    changed_by: userId,
+                    change_reason: note || `Marked as ${status.toLowerCase().replace('_', ' ')}`
+                }),
+            { showLoading: false }
+        );
+
+        return result;
+    }
+
+    /**
+     * Mark process as delayed with reason
+     */
+    async markProcessDelayed(processId, reason) {
+        const currentTime = new Date().toISOString();
+        
+        // Get current user
+        const { data: { user } } = await window.supabaseClient.auth.getUser();
+        const userId = user?.id;
+
+        // Update process status
+        const result = await this.executeSupabaseRequest(
+            () => window.supabaseClient
+                .from('processes')
+                .update({
+                    status: 'DELAYED_WITH_REASON',
+                    completion_note: reason
+                })
+                .eq('id', processId)
+                .select(),
+            { loadingMessage: 'Marking as delayed...' }
+        );
+
+        // Record status change in history
+        await this.executeSupabaseRequest(
+            () => window.supabaseClient
+                .from('process_status_history')
+                .insert({
+                    process_id: processId,
+                    old_status: 'PENDING',
+                    new_status: 'DELAYED_WITH_REASON',
+                    changed_by: userId,
+                    change_reason: reason
+                }),
+            { showLoading: false }
+        );
+
+        return result;
+    }
+
+    /**
+     * Get process status history
+     */
+    async getProcessStatusHistory(processId) {
+        return await this.executeSupabaseRequest(
+            () => window.supabaseClient
+                .from('process_status_history')
+                .select(`
+                    *,
+                    user:changed_by (email)
+                `)
+                .eq('process_id', processId)
+                .order('created_at', { ascending: false }),
+            { loadingMessage: 'Loading history...' }
+        );
+    }
+
+    /**
+     * Update overdue processes (to be called periodically)
+     */
+    async updateOverdueProcesses() {
+        const currentDate = new Date().toISOString().split('T')[0];
+        
+        return await this.executeSupabaseRequest(
+            () => window.supabaseClient
+                .from('processes')
+                .update({ status: 'OVERDUE' })
+                .eq('status', 'PENDING')
+                .lt('due_date', currentDate),
+            { loadingMessage: 'Checking overdue processes...' }
+        );
+    }
+
+    /**
+     * Get processes by status
+     */
+    async getProcessesByStatus(sheetId, status) {
+        return await this.executeSupabaseRequest(
+            () => window.supabaseClient
+                .from('processes')
+                .select(`
+                    *,
+                    assigned_user:assigned_to (email)
+                `)
+                .eq('sheet_id', sheetId)
+                .eq('status', status)
+                .order('due_date', { ascending: true }),
+            { loadingMessage: 'Loading processes...' }
+        );
+    }
+
+    /**
+     * Assign process to user
+     */
+    async assignProcessToUser(processId, userId) {
+        return await this.executeSupabaseRequest(
+            () => window.supabaseClient
+                .from('processes')
+                .update({ assigned_to: userId })
+                .eq('id', processId)
+                .select(),
+            { loadingMessage: 'Assigning process...' }
+        );
+    }
+
+    // =====================================================
+    // UTILITY FUNCTIONS
+    // =====================================================
+
+    /**
+     * Generate secure invitation token
+     */
+    generateInvitationToken() {
+        const array = new Uint8Array(32);
+        crypto.getRandomValues(array);
+        return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+    }
+
+    /**
+     * Get processes for calendar view
+     */
+    async getProcessesForCalendar(sheetId, year, month) {
+        return await this.executeSupabaseRequest(
+            () => window.supabaseClient
+                .from('processes')
+                .select(`
+                    *,
+                    assigned_user:assigned_to (email)
+                `)
+                .eq('sheet_id', sheetId)
+                .gte('due_date', `${year}-${month.toString().padStart(2, '0')}-01`)
+                .lt('due_date', `${year}-${(month + 1).toString().padStart(2, '0')}-01`)
+                .order('due_date', { ascending: true }),
+            { loadingMessage: 'Loading calendar processes...' }
+        );
+    }
+
+    /**
+     * Get dashboard statistics
+     */
+    async getDashboardStats(projectId) {
+        const result = await this.executeSupabaseRequest(
+            () => window.supabaseClient
+                .from('process_full')
+                .select('status')
+                .eq('project_id', projectId),
+            { loadingMessage: 'Loading statistics...' }
+        );
+
+        if (!result.data) return null;
+
+        const stats = {
+            total: result.data.length,
+            pending: result.data.filter(p => p.status === 'PENDING').length,
+            completed_on_time: result.data.filter(p => p.status === 'COMPLETED_ON_TIME').length,
+            completed_late: result.data.filter(p => p.status === 'COMPLETED_LATE').length,
+            overdue: result.data.filter(p => p.status === 'OVERDUE').length,
+            delayed: result.data.filter(p => p.status === 'DELAYED_WITH_REASON').length
+        };
+
+        return stats;
+    }
 }
 
 // Create global instance
