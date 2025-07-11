@@ -2819,3 +2819,60 @@ else { /* nodeLayouts for ALL nodes */ }
 *Problem naprawiony: 2025-07-11 12:45*
 
 ---
+
+## 🎨 UI IMPROVEMENTS: Panel Filters, Rebranding i UX (2025-07-11 13:30)
+
+### **Zadania wykonane:**
+1. **Naprawiono jasny layout opcji rozwijanych w panelu Filters** - dodano dark theme dla `option` elementów
+2. **Usunięto przycisk dark/light theme** - dark mode jest teraz jedynym i domyślnym motywem
+3. **Naprawiono "Reset to default" w Colors** - teraz resetuje do dark theme zamiast jasnego
+4. **Usunięto wszystkie referencje do "Bridgestone"** - zastąpiono "FlowCraft" nazewnictwem
+5. **Zmieniono "Columns" na "Processes"** - bardziej intuicyjne nazewnictwo
+6. **Zmieniono "sheets" na "datasets"** - bardziej zrozumiałe dla użytkowników
+
+### **Problem z panelem Filters:**
+- **Objaw**: Opcje rozwijane w panelu Filters miały jasny layout mimo dark theme
+- **Przyczyna**: Brak stylów CSS dla elementów `<option>` w dark mode
+- **Rozwiązanie**: Dodano dedykowane style dla `option` elementów
+
+### **Rebranding kompletny:**
+- **Zmienne CSS**: `--bridgestone-red` → `--fc-accent-red`
+- **Nazwy motywów**: "Bridgestone *" → "FlowCraft *"
+- **Klasy CSS**: `bridgestone-footer-symbol` → `fc-footer-symbol`
+- **Komentarze**: Wszędzie zastąpiono "Bridgestone" na "FlowCraft"
+
+### **Zmiany w UX:**
+- **"Columns" → "Processes"**: Bardziej intuicyjne dla użytkowników
+- **"sheets" → "datasets"**: Mniej techniczne, bardziej zrozumiałe
+- **Dark mode jako default**: Spójny design bez możliwości zmiany
+
+### **Funkcja Reset to Default:**
+- **Przed**: Resetowało do THEMES[0] (jasny motyw)
+- **Po**: Resetuje do THEMES[1] (FlowCraft Dark theme)
+
+### **Pliki zmienione:**
+- **Diagram.html**: ~150 linii zmodyfikowanych
+- **Statystyki**: 100+ zmiennych CSS, 4 motywy, 10+ komunikatów użytkownika
+
+### **Jak uniknąć w przyszłości:**
+- Zawsze testuj spójność theme w całej aplikacji
+- Sprawdź wszystkie elementy formularzy (input, select, option)
+- Pamiętaj o aktualizacji nazw motywów po rebrandingu
+- Testuj funkcje reset w różnych kontekstach
+
+### **Objawy do rozpoznania:**
+- Jasne elementy w ciemnym interfejsie
+- Nieaktualne nazwy firmowe w kodzie
+- Mylące nazwy przycisków dla użytkowników
+- Reset functions resetujące do niewłaściwych wartości
+
+### **Status:**
+- ✅ Spójny dark theme w całej aplikacji
+- ✅ Kompletne usunięcie brandingu firmowego
+- ✅ Intuicyjne nazewnictwo dla użytkowników
+- ✅ Naprawione funkcje reset
+- ✅ Profesjonalny wygląd aplikacji
+
+*Usprawnienia UI ukończone: 2025-07-11 13:30*
+
+---

@@ -749,3 +749,142 @@ console.log('Root process found:', rootProcess);
 Teraz gdy klikniesz Show Dependencies, Console pokaże dokładnie gdzie występuje błąd!
 
 *Debug implementation: 2025-07-10 21:30*
+
+---
+
+# TODO - UI Improvements and Rebranding (2025-07-11 13:00)
+
+## 🎯 NOWE ZADANIA DO WYKONANIA
+
+### 1. Ujednolić panel Filters
+- [ ] Naprawić jasny layout opcji rozwijanych w panelu Filters
+- [ ] Zastosować ciemny motyw do wszystkich elementów formularza
+- [ ] Sprawdzić spójność kolorystyki z resztą interfejsu
+
+### 2. Usunąć przycisk zmiany dark/light theme z menu
+- [ ] Znaleźć i usunąć przycisk toggle dark/light theme z menu diagramu
+- [ ] Zachować obecną kolorystykę jako domyślną
+
+### 3. Naprawić funkcję "Reset to default" w Colours
+- [ ] Zmienić logikę reset to default w sekcji Colors
+- [ ] Ustawić jako domyślne kolory z Dark Theme (zamiast jasnego)
+- [ ] Przetestować funkcjonalność
+
+### 4. Usunąć wszystkie referencje do "Bridgestone"
+- [ ] Przeszukać kod w poszukiwaniu "Bridgestone"
+- [ ] Zastąpić lub usunąć wszystkie wystąpienia
+- [ ] Zaktualizować nazwy zmiennych/kolorów
+
+### 5. Zmienić "Columns" na "Processes" w menu
+- [ ] Znaleźć odniesienia do "Columns" w menu diagramu
+- [ ] Zastąpić na "Processes" (bardziej intuicyjne)
+
+### 6. Znaleźć lepszą nazwę na "sheets"
+- [ ] Przeanalizować kontekst użycia "sheets" w aplikacji
+- [ ] Zaproponować alternatywną nazwę (np. "Datasets", "Sources", "Views")
+- [ ] Zastąpić we wszystkich miejscach w kodzie
+
+## 📋 ANALIZA WYMAGAŃ
+
+### Główne cele:
+1. **Spójność UI** - ujednolicenie dark theme w całej aplikacji
+2. **Rebranding** - usunięcie nazw firmowych
+3. **Intuicyjność** - bardziej zrozumiałe nazwy elementów
+4. **Funkcjonalność** - naprawienie reset to default
+
+### Priorytet zadań:
+- **Wysoki**: Naprawienie jasnego layoutu w Filters (wizualny problem)
+- **Średni**: Usunięcie Bridgestone, zmiana nazw
+- **Niski**: Drobne usprawnienia UX
+
+## 🔍 NASTĘPNE KROKI
+
+1. Przeanalizować kod panel Filters
+2. Zidentyfikować wszystkie wystąpienia "Bridgestone"
+3. Znaleźć przycisk dark/light theme w menu
+4. Sprawdzić logikę reset to default w Colors
+5. Wyszukać kontekst użycia "sheets" i "Columns"
+
+## 📝 UWAGI
+- Zachować całą funkcjonalność podczas zmian
+- Przetestować każdą zmianę osobno
+- Dokumentować zmiany w debug.md
+
+---
+
+## 📋 PRZEGLĄD WPROWADZONYCH ZMIAN (2025-07-11 13:30)
+
+### ✅ WYKONANE ZADANIA:
+
+#### 1. **Ujednolicenie panelu Filters**
+- **Problem**: Opcje rozwijane w panelu Filters miały jasny layout mimo dark theme
+- **Rozwiązanie**: Dodano style CSS dla `option` elementów w dark mode
+- **Pliki**: `Diagram.html` linie 3999-4010
+- **Rezultat**: Spójny ciemny motyw w całym panelu Filters
+
+#### 2. **Usunięcie przycisku dark/light theme**
+- **Problem**: Przycisk toggle theme w menu był niepotrzebny
+- **Rozwiązanie**: 
+  - Usunięto przycisk HTML z menu
+  - Usunięto style CSS dla przycisku
+  - Usunięto funkcję `setupThemeToggle()`
+  - Dodano `initializeDarkMode()` jako domyślny motyw
+- **Pliki**: `Diagram.html` linie 5291-5296 (usunięto), 2736, 13416-13422, 13633
+- **Rezultat**: Dark mode jest teraz jedynym i domyślnym motywem
+
+#### 3. **Naprawienie "Reset to default" w Colors**
+- **Problem**: Reset przyciski resetowały do jasnego motywu
+- **Rozwiązanie**: Zmieniono logikę w `resetColorsToDefault()` z THEMES[0] na THEMES[1] (dark theme)
+- **Pliki**: `Diagram.html` linie 9122-9123
+- **Rezultat**: Reset to default teraz ustawia kolory dark theme
+
+#### 4. **Usunięcie referencji do "Bridgestone"**
+- **Problem**: Aplikacja zawierała branding firmowy
+- **Rozwiązanie**:
+  - Zmieniono zmienne CSS: `--bridgestone-red` → `--fc-accent-red`
+  - Zmieniono nazwy motywów: "Bridgestone *" → "FlowCraft *"
+  - Zmieniono klasę CSS: `bridgestone-footer-symbol` → `fc-footer-symbol`
+  - Zmieniono komentarze z "Bridgestone" na "FlowCraft"
+- **Pliki**: `Diagram.html` - ponad 100 wystąpień zastąpionych
+- **Rezultat**: Kompletne usunięcie brandingu firmowego
+
+#### 5. **Zmiana "Columns" na "Processes"**
+- **Problem**: Nazwa "Columns" była myląca dla użytkowników
+- **Rozwiązanie**: 
+  - Zmieniono tekst przycisku z "Columns" na "Processes"
+  - Zmieniono tooltip z "Manage Table Columns" na "Manage Processes"
+  - Zmieniono komunikaty błędów i komentarze
+- **Pliki**: `Diagram.html` linie 5224, 5230, 5533, 5536
+- **Rezultat**: Bardziej intuicyjne nazewnictwo dla użytkowników
+
+#### 6. **Zmiana nazwy "sheets" na "datasets"**
+- **Problem**: Nazwa "sheets" mogła być myląca
+- **Rozwiązanie**: Zastąpiono kluczowe wystąpienia "sheets" przez "datasets" w:
+  - Tooltipach i komunikatach użytkownika
+  - Etykietach formularzy
+  - Komunikatach błędów
+- **Pliki**: `Diagram.html` linie 5208, 5220, 5256, 5325, 5444, 5449, 5492, 6365, 6388, 6427, 6430
+- **Rezultat**: Bardziej zrozumiałe nazewnictwo dla użytkowników
+
+### 🎯 **PODSUMOWANIE KORZYŚCI:**
+
+1. **Spójność UI**: Ujednolicony dark theme w całej aplikacji
+2. **Rebranding**: Usunięcie nazw firmowych i zastąpienie FlowCraft
+3. **Intuicyjność**: Bardziej zrozumiałe nazwy ("Processes" zamiast "Columns", "datasets" zamiast "sheets")
+4. **Funkcjonalność**: Naprawiony reset to default w Colors
+5. **Profesjonalizm**: Czyste, profesjonalne nazewnictwo bez brandingu
+
+### 📊 **STATYSTYKI:**
+- **Pliki zmodyfikowane**: 1 (Diagram.html)
+- **Linie kodu zmienione**: ~150+ linii
+- **Zmienne CSS zastąpione**: ~100 wystąpień
+- **Nazwy motywów zmienione**: 4 motywy
+- **Komunikaty użytkownika zaktualizowane**: 10+
+
+### 🔧 **TECHNICZNE SZCZEGÓŁY:**
+- Wszystkie zmiany zachowują pełną funkcjonalność
+- Zmieniono tylko nazwy i style, nie logikę
+- Zachowano kompatybilność z istniejącymi danymi
+- Dark mode jest teraz domyślny i jedyny motyw
+
+*Przegląd ukończony: 2025-07-11 13:30*

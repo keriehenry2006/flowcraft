@@ -66,10 +66,10 @@
             --fc-shadow-deep: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
             
                     /* Legacy compatibility variables */
-        --bridgestone-red: var(--fc-neon-secondary);
-        --bridgestone-red-darker: var(--flowcraft-secondary-dark);
-        --bridgestone-black: var(--fc-dark-primary);
-        --bridgestone-grey: var(--fc-text-muted);
+        --fc-accent-red: var(--fc-neon-secondary);
+        --fc-accent-red-darker: var(--flowcraft-secondary-dark);
+        --fc-accent-black: var(--fc-dark-primary);
+        --fc-accent-grey: var(--fc-text-muted);
 
         /* ============================================
            FLOWCRAFT 2025 UNIFIED BUTTON SYSTEM
@@ -644,7 +644,7 @@
             margin-top: 20px;
             margin-bottom: 12px;
             font-size: 0.75em;
-            color: var(--bridgestone-red);
+            color: var(--fc-accent-red);
             text-transform: uppercase;
             border-bottom: 2px solid rgba(218, 41, 28, 0.2);
             padding-bottom: 8px;
@@ -660,7 +660,7 @@
             left: 0;
             width: 30px;
             height: 2px;
-            background: linear-gradient(90deg, var(--bridgestone-red), transparent);
+            background: linear-gradient(90deg, var(--fc-accent-red), transparent);
         }
         
         #menu-content h4:first-of-type {
@@ -848,7 +848,7 @@
             height: 75vh; 
             /* NOWOCZESNE OBRAMOWANIE Z GRADIENTEM */
             border: 3px solid;
-            border-image: linear-gradient(135deg, var(--bridgestone-red) 0%, #e74c3c 50%, var(--bridgestone-red-darker) 100%) 1;
+            border-image: linear-gradient(135deg, var(--fc-accent-red) 0%, #e74c3c 50%, var(--fc-accent-red-darker) 100%) 1;
             border-radius: 16px;
             position: relative; 
             overflow: auto; 
@@ -900,7 +900,7 @@
             color: #333;
         }
         #welcome-message-overlay h2 {
-            color: var(--bridgestone-red);
+            color: var(--fc-accent-red);
             margin-bottom: 20px;
             font-size: 1.5em;
         }
@@ -910,7 +910,7 @@
             max-width: 650px;
         }
         #welcome-message-overlay strong {
-            color: var(--bridgestone-red-darker);
+            color: var(--fc-accent-red-darker);
             font-weight: 600;
         }
          #welcome-message-overlay .highlight-path {
@@ -1011,11 +1011,11 @@
             left: 100%;
         }
         
-        /* SELECTED/ACTIVE STATE z Bridgestone Red accent */
+        /* SELECTED/ACTIVE STATE z FlowCraft accent */
         #sticky-y-axis .axis.active-axis-filter, #sticky-x-axis .axis.active-axis-filter { 
             background: linear-gradient(135deg, rgba(218, 41, 28, 0.1) 0%, rgba(218, 41, 28, 0.05) 100%);
-            border: 2px solid var(--bridgestone-red);
-            color: var(--bridgestone-red-darker);
+            border: 2px solid var(--fc-accent-red);
+            color: var(--fc-accent-red-darker);
             font-weight: 600;
             box-shadow: 
                 0 0 20px rgba(218, 41, 28, 0.2),
@@ -1284,7 +1284,7 @@
             border: none; 
             border-radius: 6px; 
             cursor: pointer; 
-            background: linear-gradient(135deg, var(--bridgestone-red) 0%, #e74c3c 100%);
+            background: linear-gradient(135deg, var(--fc-accent-red) 0%, #e74c3c 100%);
             color: white; 
             margin-top: 10px; 
             font-size: 0.9em;
@@ -1293,7 +1293,7 @@
             box-shadow: 0 2px 8px rgba(218, 41, 28, 0.3);
         }
         #process-details button:hover { 
-            background: linear-gradient(135deg, var(--bridgestone-red-darker) 0%, #c0392b 100%);
+            background: linear-gradient(135deg, var(--fc-accent-red-darker) 0%, #c0392b 100%);
             transform: translateY(-1px);
             box-shadow: 0 4px 12px rgba(218, 41, 28, 0.4);
         }
@@ -1381,7 +1381,7 @@
         #filter-panel h3 { 
             margin-top: 0; 
             margin-bottom: 25px; 
-            border-bottom: 3px solid var(--bridgestone-red);
+            border-bottom: 3px solid var(--fc-accent-red);
             padding-bottom: 15px;
             font-size: 1.4em;
             font-weight: 700;
@@ -1396,13 +1396,13 @@
             left: 0;
             width: 50px;
             height: 3px;
-            background: linear-gradient(90deg, var(--bridgestone-red), transparent);
+            background: linear-gradient(90deg, var(--fc-accent-red), transparent);
         }
         
         #filter-panel h4 { 
             margin-top: 20px; 
             margin-bottom: 12px; 
-            color: var(--bridgestone-red); 
+            color: var(--fc-accent-red); 
             border-bottom: 2px solid rgba(218, 41, 28, 0.2); 
             padding-bottom: 8px;
             font-size: 1.1em;
@@ -1417,7 +1417,7 @@
             left: 0;
             width: 30px;
             height: 2px;
-            background: linear-gradient(90deg, var(--bridgestone-red), transparent);
+            background: linear-gradient(90deg, var(--fc-accent-red), transparent);
         }
         
         #filter-panel p, #filter-panel li, #filter-panel label { 
@@ -1448,7 +1448,7 @@
         
         #filter-panel select:focus, #filter-panel input[type="time"]:focus, #filter-panel input[type="text"]:focus {
             outline: none;
-            border-color: var(--bridgestone-red);
+            border-color: var(--fc-accent-red);
             box-shadow: 0 0 0 3px rgba(218, 41, 28, 0.1);
         }
         
@@ -1505,7 +1505,7 @@
         #simulation-panel h3 { 
             margin-top: 0; 
             margin-bottom: 25px; 
-            border-bottom: 3px solid var(--bridgestone-red);
+            border-bottom: 3px solid var(--fc-accent-red);
             padding-bottom: 15px;
             font-size: 1.4em;
             font-weight: 700;
@@ -1520,13 +1520,13 @@
             left: 0;
             width: 50px;
             height: 3px;
-            background: linear-gradient(90deg, var(--bridgestone-red), transparent);
+            background: linear-gradient(90deg, var(--fc-accent-red), transparent);
         }
         
         #simulation-panel h4 { 
             margin-top: 20px; 
             margin-bottom: 12px; 
-            color: var(--bridgestone-red); 
+            color: var(--fc-accent-red); 
             border-bottom: 2px solid rgba(218, 41, 28, 0.2); 
             padding-bottom: 8px;
             font-size: 1.1em;
@@ -1541,7 +1541,7 @@
             left: 0;
             width: 30px;
             height: 2px;
-            background: linear-gradient(90deg, var(--bridgestone-red), transparent);
+            background: linear-gradient(90deg, var(--fc-accent-red), transparent);
         }
         
         #simulation-panel p, #simulation-panel li, #simulation-panel label { 
@@ -1572,7 +1572,7 @@
         
         #simulation-panel select:focus, #simulation-panel input[type="text"]:focus, #simulation-panel input[type="number"]:focus {
             outline: none;
-            border-color: var(--bridgestone-red);
+            border-color: var(--fc-accent-red);
             box-shadow: 0 0 0 3px rgba(218, 41, 28, 0.1);
         }
         
@@ -1607,7 +1607,7 @@
         }
         
         #simulation-targets-list .sim-card.active-card {
-            border-color: var(--bridgestone-red);
+            border-color: var(--fc-accent-red);
             box-shadow: 0 4px 16px rgba(218, 41, 28, 0.2);
             background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
         }
@@ -1679,7 +1679,7 @@
         #tutorial-panel h3 { 
             margin-top: 0; 
             margin-bottom: 25px; 
-            border-bottom: 3px solid var(--bridgestone-red);
+            border-bottom: 3px solid var(--fc-accent-red);
             padding-bottom: 15px;
             font-size: 1.4em;
             font-weight: 700;
@@ -1694,13 +1694,13 @@
             left: 0;
             width: 50px;
             height: 3px;
-            background: linear-gradient(90deg, var(--bridgestone-red), transparent);
+            background: linear-gradient(90deg, var(--fc-accent-red), transparent);
         }
         
         #tutorial-panel h4 { 
             margin-top: 25px; 
             margin-bottom: 12px; 
-            color: var(--bridgestone-red); 
+            color: var(--fc-accent-red); 
             border-bottom: 2px solid rgba(218, 41, 28, 0.2); 
             padding-bottom: 8px;
             font-size: 1.1em;
@@ -1715,7 +1715,7 @@
             left: 0;
             width: 30px;
             height: 2px;
-            background: linear-gradient(90deg, var(--bridgestone-red), transparent);
+            background: linear-gradient(90deg, var(--fc-accent-red), transparent);
         }
         
         #tutorial-panel p, #tutorial-panel li { 
@@ -1739,7 +1739,7 @@
             content: '▶';
             position: absolute;
             left: -20px;
-            color: var(--bridgestone-red);
+            color: var(--fc-accent-red);
             font-size: 0.8em;
             top: 2px;
         }
@@ -1754,7 +1754,7 @@
         }
         
         #tutorial-panel ol li::marker {
-            color: var(--bridgestone-red);
+            color: var(--fc-accent-red);
             font-weight: 600;
         }
         
@@ -1763,7 +1763,7 @@
             padding: 4px 8px; 
             border-radius: 6px; 
             font-family: 'Consolas', 'Monaco', 'Courier New', monospace; 
-            color: var(--bridgestone-red-darker);
+            color: var(--fc-accent-red-darker);
             font-weight: 600;
             border: 1px solid rgba(218, 41, 28, 0.2);
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -1843,9 +1843,9 @@
             color: #495057;
         }
         .simulation-type-button.active { 
-            background: linear-gradient(135deg, var(--bridgestone-red) 0%, #e74c3c 100%); 
+            background: linear-gradient(135deg, var(--fc-accent-red) 0%, #e74c3c 100%); 
             color: white; 
-            border-color: var(--bridgestone-red);
+            border-color: var(--fc-accent-red);
             box-shadow: 0 2px 8px rgba(218, 41, 28, 0.3);
         }
         .simulation-type-button:hover:not(.active) { 
@@ -1890,7 +1890,7 @@
             font-size: 1.1em; 
             border-top: 2px solid rgba(218, 41, 28, 0.2); 
             padding-top: 15px;
-            color: var(--bridgestone-red);
+            color: var(--fc-accent-red);
             font-weight: 600;
         }
         #simulation-impact-list { 
@@ -1905,7 +1905,7 @@
             padding: 8px 12px;
             background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
             border-radius: 6px;
-            border-left: 3px solid var(--bridgestone-red);
+            border-left: 3px solid var(--fc-accent-red);
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         }
 
@@ -1918,7 +1918,7 @@
             padding-top: 15px;
             font-size: 0.8em; 
             color: #333;
-            border-top: 1px solid var(--bridgestone-red);
+            border-top: 1px solid var(--fc-accent-red);
         }
 
         body.presentation-mode { padding: 0; overflow: hidden; }
@@ -1969,7 +1969,7 @@
             overflow: hidden; 
             display: none; 
             border-radius: 12px;
-            border-top: 3px solid var(--bridgestone-red);
+            border-top: 3px solid var(--fc-accent-red);
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
         #mini-map-wrapper:hover {
@@ -2008,7 +2008,7 @@
             background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
             backdrop-filter: blur(10px);
             border: 1px solid rgba(0, 0, 0, 0.08);
-            border-left: 3px solid var(--bridgestone-red);
+            border-left: 3px solid var(--fc-accent-red);
             box-shadow: 
                 -8px 0 40px rgba(0, 0, 0, 0.15),
                 -4px 0 16px rgba(0, 0, 0, 0.1),
@@ -2043,7 +2043,7 @@
             left: 25px;
             width: 60px;
             height: 3px;
-            background: linear-gradient(90deg, var(--bridgestone-red), transparent);
+            background: linear-gradient(90deg, var(--fc-accent-red), transparent);
         }
         
         #dependency-panel-title-bar h3 { 
@@ -2058,7 +2058,7 @@
             padding: 10px 16px; 
             font-size: 0.9em; 
             margin-left: 15px; 
-            background: linear-gradient(135deg, var(--bridgestone-red) 0%, #e74c3c 100%);
+            background: linear-gradient(135deg, var(--fc-accent-red) 0%, #e74c3c 100%);
             color: white; 
             border: none; 
             border-radius: 6px; 
@@ -2069,7 +2069,7 @@
         }
         
         #highlight-tree-nodes-button:hover { 
-            background: linear-gradient(135deg, var(--bridgestone-red-darker) 0%, #c0392b 100%);
+            background: linear-gradient(135deg, var(--fc-accent-red-darker) 0%, #c0392b 100%);
             transform: translateY(-1px);
             box-shadow: 0 4px 12px rgba(218, 41, 28, 0.4);
         }
@@ -2136,7 +2136,7 @@
         /* Nowoczesne style dla węzłów drzewa zależności */
         .dep-tree-node rect { 
             fill: #ffffff;
-            stroke: var(--bridgestone-red); 
+            stroke: var(--fc-accent-red); 
             stroke-width: 2px; 
             rx: 6; 
             ry: 6; 
@@ -2146,7 +2146,7 @@
         
         .dep-tree-node.selected-root rect { 
             fill: #fff5f5;
-            stroke: var(--bridgestone-red-darker); 
+            stroke: var(--fc-accent-red-darker); 
             stroke-width: 3px; 
             filter: drop-shadow(0 4px 8px rgba(218, 41, 28, 0.2));
         }
@@ -2177,7 +2177,7 @@
         }
         
         .dep-tree-node text.toggle-text:hover { 
-            fill: var(--bridgestone-red); 
+            fill: var(--fc-accent-red); 
             transform: scale(1.05);
         }
         
@@ -2272,7 +2272,7 @@
 
 
         .modal-content {
-            border-top: 4px solid var(--bridgestone-red);
+            border-top: 4px solid var(--fc-accent-red);
         }
 
         .page-footer {
@@ -2281,11 +2281,11 @@
             justify-content: center;
         }
 
-        .bridgestone-footer-symbol {
+        .fc-footer-symbol {
             width: 18px;
             height: 18px;
             margin-right: 10px;
-            fill: var(--bridgestone-red);
+            fill: var(--fc-accent-red);
         }
 		.context-menu {
             display: none;
@@ -2733,18 +2733,7 @@
             box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
         }
 
-#theme-toggle-button .sun-icon,
-#theme-toggle-button .moon-icon {
-    vertical-align: middle;
-}
-
-body:not(.dark-mode) #theme-toggle-button .moon-icon {
-    display: none;
-}
-
-body.dark-mode #theme-toggle-button .sun-icon {
-    display: none;
-}
+/* Theme toggle button styles removed */
 
         /* Ukrycie starego panelu, ponieważ został zastąpiony nowym bocznym panelem */
         .colors-toggle-bar { display: none !important; }
@@ -3174,7 +3163,7 @@ body.dark-mode #theme-toggle-button .sun-icon {
 /* Kiedy panel staje się aktywny (wybrano proces), wsuwa się na ekran */
 #process-details.active {
     transform: translateY(0);
-    border-top: 3px solid var(--bridgestone-red);
+    border-top: 3px solid var(--fc-accent-red);
     background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
     box-shadow: 
         0 -8px 40px rgba(0, 0, 0, 0.2),
@@ -3207,7 +3196,7 @@ body.dark-mode #theme-toggle-button .sun-icon {
 }
 
 .details-icon {
-    color: var(--bridgestone-red);
+    color: var(--fc-accent-red);
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -3371,13 +3360,13 @@ body.dark-mode #theme-toggle-button .sun-icon {
 }
 
 #details-action-buttons .edit-process-button { 
-    background: linear-gradient(135deg, var(--bridgestone-red) 0%, #e74c3c 100%);
+    background: linear-gradient(135deg, var(--fc-accent-red) 0%, #e74c3c 100%);
     color: white; 
     box-shadow: 0 2px 8px rgba(218, 41, 28, 0.3);
 }
 
 #details-action-buttons .edit-process-button:hover { 
-    background: linear-gradient(135deg, var(--bridgestone-red-darker) 0%, #c0392b 100%);
+    background: linear-gradient(135deg, var(--fc-accent-red-darker) 0%, #c0392b 100%);
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(218, 41, 28, 0.4);
 }
@@ -3401,7 +3390,7 @@ body.dark-mode #theme-toggle-button .sun-icon {
     border: none; 
     border-radius: 6px; 
     cursor: pointer; 
-    background: linear-gradient(135deg, var(--bridgestone-red) 0%, #e74c3c 100%);
+    background: linear-gradient(135deg, var(--fc-accent-red) 0%, #e74c3c 100%);
     color: white; 
     margin-top: 12px; 
     margin-right: 8px;
@@ -3412,7 +3401,7 @@ body.dark-mode #theme-toggle-button .sun-icon {
 }
 
 #details-content-wrapper button:hover { 
-    background: linear-gradient(135deg, var(--bridgestone-red-darker) 0%, #c0392b 100%);
+    background: linear-gradient(135deg, var(--fc-accent-red-darker) 0%, #c0392b 100%);
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(218, 41, 28, 0.4);
 }
@@ -3582,12 +3571,12 @@ body {
         }
 
         body.dark-mode #menu-button {
-            background-color: var(--bridgestone-red);
+            background-color: var(--fc-accent-red);
             color: white;
-            border: 1px solid var(--bridgestone-red-darker);
+            border: 1px solid var(--fc-accent-red-darker);
         }
         body.dark-mode #menu-button:hover {
-            background-color: var(--bridgestone-red-darker);
+            background-color: var(--fc-accent-red-darker);
             color: white;
         }
         body.dark-mode #menu-button svg {
@@ -3599,7 +3588,7 @@ body {
             /* GRADIENT TŁO ZAMIAST PŁASKIEGO DARK */
             background: linear-gradient(135deg, #1a202c 0%, #2d3748 50%, #1e2530 100%);
             /* NOWOCZESNE OBRAMOWANIE Z GRADIENTEM */
-            border-image: linear-gradient(135deg, var(--bridgestone-red) 0%, #e74c3c 50%, var(--bridgestone-red-darker) 100%) 1;
+            border-image: linear-gradient(135deg, var(--fc-accent-red) 0%, #e74c3c 50%, var(--fc-accent-red-darker) 100%) 1;
             /* NOWOCZESNE CIENIE 3D DLA DARK MODE */
             box-shadow: 
                 0 20px 40px rgba(0, 0, 0, 0.3),
@@ -3622,7 +3611,7 @@ body {
             color: #e0e0e0;
         }
         body.dark-mode #welcome-message-overlay h2 {
-            color: var(--bridgestone-red);
+            color: var(--fc-accent-red);
         }
         body.dark-mode #welcome-message-overlay strong {
             color: #f5f5f5;
@@ -3643,8 +3632,8 @@ body {
             border-color: #608da8;
         }
         body.dark-mode .process-node.selected {
-            border-color: var(--bridgestone-red) !important;
-            box-shadow: 0 0 8px var(--bridgestone-red) !important;
+            border-color: var(--fc-accent-red) !important;
+            box-shadow: 0 0 8px var(--fc-accent-red) !important;
         }
 		
         /* === DARK MODE DLA STANDARD-BLOCKING - KOLORY USTAWIANE DYNAMICZNIE === */
@@ -3670,7 +3659,7 @@ body {
             background-color: #2b2b2b;
             color: #e0e0e0;
             border: 1px solid #444;
-            border-top: 4px solid var(--bridgestone-red);
+            border-top: 4px solid var(--fc-accent-red);
         }
         body.dark-mode .modal-content h3 {
             border-bottom: 1px solid #444;
@@ -3756,11 +3745,11 @@ body {
         
         body.dark-mode #simulation-panel h3 { 
             color: #f7fafc;
-            border-bottom: 3px solid var(--bridgestone-red);
+            border-bottom: 3px solid var(--fc-accent-red);
         }
         
         body.dark-mode #simulation-panel h3::after {
-            background: linear-gradient(90deg, var(--bridgestone-red), rgba(218, 41, 28, 0.3));
+            background: linear-gradient(90deg, var(--fc-accent-red), rgba(218, 41, 28, 0.3));
         }
         
         body.dark-mode #simulation-panel h4 {
@@ -3769,7 +3758,7 @@ body {
         }
         
         body.dark-mode #simulation-panel h4::after {
-            background: linear-gradient(90deg, var(--bridgestone-red), rgba(218, 41, 28, 0.2));
+            background: linear-gradient(90deg, var(--fc-accent-red), rgba(218, 41, 28, 0.2));
         }
         
         body.dark-mode #simulation-panel p, 
@@ -3797,18 +3786,18 @@ body {
         body.dark-mode #simulation-panel select:focus, 
         body.dark-mode #simulation-panel input[type="text"]:focus, 
         body.dark-mode #simulation-panel input[type="number"]:focus {
-            border-color: var(--bridgestone-red);
+            border-color: var(--fc-accent-red);
             box-shadow: 0 0 0 3px rgba(218, 41, 28, 0.2);
         }
         
         body.dark-mode #simulation-panel button {
-            background: linear-gradient(135deg, var(--bridgestone-red) 0%, #c53030 100%);
+            background: linear-gradient(135deg, var(--fc-accent-red) 0%, #c53030 100%);
             color: white;
             box-shadow: 0 2px 8px rgba(218, 41, 28, 0.4);
         }
         
         body.dark-mode #simulation-panel button:hover {
-            background: linear-gradient(135deg, var(--bridgestone-red-darker) 0%, #a71005 100%);
+            background: linear-gradient(135deg, var(--fc-accent-red-darker) 0%, #a71005 100%);
             box-shadow: 0 4px 12px rgba(218, 41, 28, 0.5);
         }
         
@@ -3835,7 +3824,7 @@ body {
         }
         
         body.dark-mode #simulation-targets-list .sim-card.active-card {
-            border-color: var(--bridgestone-red);
+            border-color: var(--fc-accent-red);
             box-shadow: 0 4px 16px rgba(218, 41, 28, 0.3);
             background: linear-gradient(135deg, #5a6c7d 0%, #3a4a5d 100%);
         }
@@ -3859,8 +3848,8 @@ body {
         }
         
         body.dark-mode .simulation-type-button.active {
-            background: linear-gradient(135deg, var(--bridgestone-red) 0%, #c53030 100%);
-            border-color: var(--bridgestone-red);
+            background: linear-gradient(135deg, var(--fc-accent-red) 0%, #c53030 100%);
+            border-color: var(--fc-accent-red);
             box-shadow: 0 2px 8px rgba(218, 41, 28, 0.4);
         }
         
@@ -3889,7 +3878,7 @@ body {
         
         body.dark-mode #simulation-impact-list li {
             background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
-            border-left: 3px solid var(--bridgestone-red);
+            border-left: 3px solid var(--fc-accent-red);
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
             color: #cbd5e0;
         }
@@ -3915,7 +3904,7 @@ body {
         }
         
         body.dark-mode .sim-card-controls .sim-param-group input:focus {
-            border-color: var(--bridgestone-red);
+            border-color: var(--fc-accent-red);
             box-shadow: 0 0 0 3px rgba(218, 41, 28, 0.2);
         }
         
@@ -3951,11 +3940,11 @@ body {
         
         body.dark-mode #filter-panel h3 { 
             color: #f7fafc;
-            border-bottom: 3px solid var(--bridgestone-red);
+            border-bottom: 3px solid var(--fc-accent-red);
         }
         
         body.dark-mode #filter-panel h3::after {
-            background: linear-gradient(90deg, var(--bridgestone-red), rgba(218, 41, 28, 0.3));
+            background: linear-gradient(90deg, var(--fc-accent-red), rgba(218, 41, 28, 0.3));
         }
         
         body.dark-mode #filter-panel h4 {
@@ -3964,7 +3953,7 @@ body {
         }
         
         body.dark-mode #filter-panel h4::after {
-            background: linear-gradient(90deg, var(--bridgestone-red), rgba(218, 41, 28, 0.2));
+            background: linear-gradient(90deg, var(--fc-accent-red), rgba(218, 41, 28, 0.2));
         }
         
         body.dark-mode #filter-panel p, 
@@ -3992,8 +3981,21 @@ body {
         body.dark-mode #filter-panel select:focus, 
         body.dark-mode #filter-panel input[type="time"]:focus, 
         body.dark-mode #filter-panel input[type="text"]:focus {
-            border-color: var(--bridgestone-red);
+            border-color: var(--fc-accent-red);
             box-shadow: 0 0 0 3px rgba(218, 41, 28, 0.2);
+        }
+        
+        /* Dark mode styles for select dropdown options */
+        body.dark-mode #filter-panel select option {
+            background: #2d3748;
+            color: #e2e8f0;
+            border: none;
+        }
+        
+        body.dark-mode #filter-panel select option:hover,
+        body.dark-mode #filter-panel select option:focus {
+            background: #4a5568;
+            color: #ffffff;
         }
         
         body.dark-mode #filter-panel .close-panel-button { 
@@ -4012,13 +4014,13 @@ body {
         }
         
         body.dark-mode #apply-filters-button {
-            background: linear-gradient(135deg, var(--bridgestone-red) 0%, #c53030 100%);
+            background: linear-gradient(135deg, var(--fc-accent-red) 0%, #c53030 100%);
             color: white;
             box-shadow: 0 4px 12px rgba(218, 41, 28, 0.4);
         }
         
         body.dark-mode #apply-filters-button:hover {
-            background: linear-gradient(135deg, var(--bridgestone-red-darker) 0%, #a71005 100%);
+            background: linear-gradient(135deg, var(--fc-accent-red-darker) 0%, #a71005 100%);
             box-shadow: 0 6px 20px rgba(218, 41, 28, 0.5);
         }
         body.dark-mode #converter-panel .warning {
@@ -4123,7 +4125,7 @@ body.dark-mode #reset-colors-button:hover, body.dark-mode #generate-theme-button
         body.dark-mode #sticky-y-axis .axis.active-axis-filter,
         body.dark-mode #sticky-x-axis .axis.active-axis-filter {
             background: linear-gradient(135deg, rgba(218, 41, 28, 0.2) 0%, rgba(218, 41, 28, 0.1) 100%);
-            border: 2px solid var(--bridgestone-red);
+            border: 2px solid var(--fc-accent-red);
             color: #ff9999;
             font-weight: 600;
             box-shadow: 
@@ -4135,10 +4137,10 @@ body.dark-mode #reset-colors-button:hover, body.dark-mode #generate-theme-button
 
         body.dark-mode .page-footer {
             color: #aaa;
-            border-top: 1px solid var(--bridgestone-red);
+            border-top: 1px solid var(--fc-accent-red);
         }
-        body.dark-mode .bridgestone-footer-symbol {
-             fill: var(--bridgestone-red);
+        body.dark-mode .fc-footer-symbol {
+             fill: var(--fc-accent-red);
         }
 
         body.dark-mode #notification-bar {
@@ -4274,7 +4276,7 @@ body.dark-mode #reset-colors-button:hover, body.dark-mode #generate-theme-button
             border-bottom-color: rgba(218, 41, 28, 0.3);
         }
         body.dark-mode #menu-content h4::after {
-            background: linear-gradient(90deg, var(--bridgestone-red), transparent);
+            background: linear-gradient(90deg, var(--fc-accent-red), transparent);
         }
         body.dark-mode #menu-content hr {
             background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
@@ -4306,7 +4308,7 @@ body.dark-mode #reset-colors-button:hover, body.dark-mode #generate-theme-button
             background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            border-left: 3px solid var(--bridgestone-red);
+            border-left: 3px solid var(--fc-accent-red);
             box-shadow: 
                 -8px 0 40px rgba(0, 0, 0, 0.4),
                 -4px 0 16px rgba(0, 0, 0, 0.3),
@@ -4320,7 +4322,7 @@ body.dark-mode #reset-colors-button:hover, body.dark-mode #generate-theme-button
         }
         
         body.dark-mode #dependency-panel-title-bar::after {
-            background: linear-gradient(90deg, var(--bridgestone-red), rgba(218, 41, 28, 0.3));
+            background: linear-gradient(90deg, var(--fc-accent-red), rgba(218, 41, 28, 0.3));
         }
         
         body.dark-mode #dependency-panel-title-bar h3 {
@@ -4328,13 +4330,13 @@ body.dark-mode #reset-colors-button:hover, body.dark-mode #generate-theme-button
         }
         
         body.dark-mode #highlight-tree-nodes-button {
-            background: linear-gradient(135deg, var(--bridgestone-red) 0%, #c53030 100%);
+            background: linear-gradient(135deg, var(--fc-accent-red) 0%, #c53030 100%);
             color: white;
             box-shadow: 0 2px 8px rgba(218, 41, 28, 0.4);
         }
         
         body.dark-mode #highlight-tree-nodes-button:hover {
-            background: linear-gradient(135deg, var(--bridgestone-red-darker) 0%, #a71005 100%);
+            background: linear-gradient(135deg, var(--fc-accent-red-darker) 0%, #a71005 100%);
             box-shadow: 0 4px 12px rgba(218, 41, 28, 0.5);
         }
         
@@ -4375,7 +4377,7 @@ body.dark-mode #reset-colors-button:hover, body.dark-mode #generate-theme-button
         /* === ULEPSZONY DARK MODE DLA DEPENDENCY TREE NODES === */
         body.dark-mode .dep-tree-node rect {
             fill: #4a5568;
-            stroke: var(--bridgestone-red);
+            stroke: var(--fc-accent-red);
             stroke-width: 2px;
             filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
         }
@@ -4477,7 +4479,7 @@ body.dark-mode #reset-colors-button:hover, body.dark-mode #generate-theme-button
         body.dark-mode #mini-map-wrapper {
             background: linear-gradient(135deg, rgba(33, 37, 41, 0.95) 0%, rgba(52, 58, 64, 0.9) 100%);
             border: 1px solid #495057;
-            border-top: 3px solid var(--bridgestone-red);
+            border-top: 3px solid var(--fc-accent-red);
             box-shadow: 
                 0 12px 32px rgba(255, 255, 255, 0.08),
                 0 4px 16px rgba(255, 255, 255, 0.05),
@@ -4518,7 +4520,7 @@ body.dark-mode #reset-colors-button:hover, body.dark-mode #generate-theme-button
         #colors-panel h3 { 
             margin-top: 0; 
             margin-bottom: 25px; 
-            border-bottom: 3px solid var(--bridgestone-red);
+            border-bottom: 3px solid var(--fc-accent-red);
             padding-bottom: 15px;
             font-size: 1.4em;
             font-weight: 700;
@@ -4533,13 +4535,13 @@ body.dark-mode #reset-colors-button:hover, body.dark-mode #generate-theme-button
             left: 0;
             width: 50px;
             height: 3px;
-            background: linear-gradient(90deg, var(--bridgestone-red), transparent);
+            background: linear-gradient(90deg, var(--fc-accent-red), transparent);
         }
         
         #colors-panel h4 { 
             margin-top: 20px; 
             margin-bottom: 12px; 
-            color: var(--bridgestone-red); 
+            color: var(--fc-accent-red); 
             border-bottom: 2px solid rgba(218, 41, 28, 0.2); 
             padding-bottom: 8px;
             font-size: 1.1em;
@@ -4554,7 +4556,7 @@ body.dark-mode #reset-colors-button:hover, body.dark-mode #generate-theme-button
             left: 0;
             width: 30px;
             height: 2px;
-            background: linear-gradient(90deg, var(--bridgestone-red), transparent);
+            background: linear-gradient(90deg, var(--fc-accent-red), transparent);
         }
         
         .colors-panel-content {
@@ -4759,14 +4761,14 @@ body.dark-mode #reset-colors-button:hover, body.dark-mode #generate-theme-button
         
         body.dark-mode #tutorial-panel h3 { 
             color: #f7fafc;
-            border-bottom: 3px solid var(--bridgestone-red);
-            background: linear-gradient(90deg, var(--bridgestone-red) 0%, transparent 50%);
+            border-bottom: 3px solid var(--fc-accent-red);
+            background: linear-gradient(90deg, var(--fc-accent-red) 0%, transparent 50%);
             background-clip: text;
             -webkit-background-clip: text;
         }
         
         body.dark-mode #tutorial-panel h3::after {
-            background: linear-gradient(90deg, var(--bridgestone-red), rgba(218, 41, 28, 0.3));
+            background: linear-gradient(90deg, var(--fc-accent-red), rgba(218, 41, 28, 0.3));
         }
         
         body.dark-mode #tutorial-panel h4 {
@@ -4775,7 +4777,7 @@ body.dark-mode #reset-colors-button:hover, body.dark-mode #generate-theme-button
         }
         
         body.dark-mode #tutorial-panel h4::after {
-            background: linear-gradient(90deg, var(--bridgestone-red), rgba(218, 41, 28, 0.2));
+            background: linear-gradient(90deg, var(--fc-accent-red), rgba(218, 41, 28, 0.2));
         }
         
         body.dark-mode #tutorial-panel p, 
@@ -4831,14 +4833,14 @@ body.dark-mode #reset-colors-button:hover, body.dark-mode #generate-theme-button
         
         body.dark-mode #colors-panel h3 { 
             color: #f7fafc;
-            border-bottom: 3px solid var(--bridgestone-red);
-            background: linear-gradient(90deg, var(--bridgestone-red) 0%, transparent 50%);
+            border-bottom: 3px solid var(--fc-accent-red);
+            background: linear-gradient(90deg, var(--fc-accent-red) 0%, transparent 50%);
             background-clip: text;
             -webkit-background-clip: text;
         }
         
         body.dark-mode #colors-panel h3::after {
-            background: linear-gradient(90deg, var(--bridgestone-red), rgba(218, 41, 28, 0.3));
+            background: linear-gradient(90deg, var(--fc-accent-red), rgba(218, 41, 28, 0.3));
         }
         
         body.dark-mode #colors-panel h4 {
@@ -4847,7 +4849,7 @@ body.dark-mode #reset-colors-button:hover, body.dark-mode #generate-theme-button
         }
         
         body.dark-mode #colors-panel h4::after {
-            background: linear-gradient(90deg, var(--bridgestone-red), rgba(218, 41, 28, 0.2));
+            background: linear-gradient(90deg, var(--fc-accent-red), rgba(218, 41, 28, 0.2));
         }
         
         body.dark-mode .color-group {
@@ -4942,7 +4944,7 @@ body.dark-mode #process-details {
 
 body.dark-mode #process-details.active {
     background: linear-gradient(135deg, #5a6c7d 0%, #3a4a5d 100%);
-    border-top-color: var(--bridgestone-red);
+    border-top-color: var(--fc-accent-red);
 }
 
 body.dark-mode .details-title-container {
@@ -4992,13 +4994,13 @@ body.dark-mode #details-action-buttons h4 {
 }
 
 body.dark-mode #details-action-buttons .edit-process-button { 
-    background: linear-gradient(135deg, var(--bridgestone-red) 0%, #c53030 100%);
+    background: linear-gradient(135deg, var(--fc-accent-red) 0%, #c53030 100%);
     color: white;
     box-shadow: 0 2px 8px rgba(218, 41, 28, 0.4);
 }
 
 body.dark-mode #details-action-buttons .edit-process-button:hover { 
-    background: linear-gradient(135deg, var(--bridgestone-red-darker) 0%, #a71005 100%);
+    background: linear-gradient(135deg, var(--fc-accent-red-darker) 0%, #a71005 100%);
     box-shadow: 0 4px 12px rgba(218, 41, 28, 0.5);
 }
 
@@ -5203,7 +5205,7 @@ body.dark-mode .status-icon-pending {
                     <span style="font-size: 16px; font-weight: 700; color: var(--fc-text-primary); text-transform: uppercase; letter-spacing: 0.5px;">FlowCraft</span>
                 </div>
                 <div class="sheet-multi-select-container" style="display: flex; align-items: center; gap: 8px; position: relative;">
-                    <button id="top-sheet-multi-select-button" title="Select sheets to view" style="padding: 6px 12px; border: 1px solid #ced4da; border-radius: 4px; background: white; font-size: 0.85em; min-width: 150px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+                    <button id="top-sheet-multi-select-button" title="Select datasets to view" style="padding: 6px 12px; border: 1px solid #ced4da; border-radius: 4px; background: white; font-size: 0.85em; min-width: 150px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
                         <span id="top-sheet-selection-text">Loading...</span>
                         <span style="margin-left: 8px;">▼</span>
                 </button>
@@ -5215,17 +5217,17 @@ body.dark-mode .status-icon-pending {
                             </label>
                         </div>
                         <div id="top-sheet-multi-select-options" style="padding: 4px;">
-                            <p style="font-size:0.85em; color:#777; margin: 8px; text-align: center;">No sheets available in this project.</p>
+                            <p style="font-size:0.85em; color:#777; margin: 8px; text-align: center;">No datasets available in this project.</p>
                         </div>
                     </div>
                 </div>
-                <button id="manage-columns-diagram-btn" title="Manage Table Columns" style="padding: 8px 12px; background: linear-gradient(135deg, #6c757d 0%, #495057 100%); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85em; display: flex; align-items: center; gap: 4px;">
+                <button id="manage-columns-diagram-btn" title="Manage Processes" style="padding: 8px 12px; background: linear-gradient(135deg, #6c757d 0%, #495057 100%); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85em; display: flex; align-items: center; gap: 4px;">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <rect x="3" y="3" width="18" height="6" rx="1"></rect>
                         <rect x="3" y="9" width="18" height="6" rx="1"></rect>
                         <rect x="3" y="15" width="18" height="6" rx="1"></rect>
                     </svg>
-                    Columns
+                    Processes
                 </button>
             </div>
             <div class="menu-container">
@@ -5251,7 +5253,7 @@ body.dark-mode .status-icon-pending {
 
                     <hr>
                     <h4>Editing & Tools</h4>
-                    <button id="add-process-button" title="Add a new process to the current sheet view">Add Process</button>
+                    <button id="add-process-button" title="Add a new process to the current dataset view">Add Process</button>
                     <button id="toggle-dependency-edit-button" title="Toggle dependency editing mode">Enable Dependency Editing</button>
                     <button id="menu-dependency-panel-trigger" title="Show Dependencies in Panel (select a node first)">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 5px;">
@@ -5276,11 +5278,6 @@ body.dark-mode .status-icon-pending {
             </div>
             <button id="reset-button" title="Reset diagram zoom, scroll, filters, and selections to default">Reset View</button>
             <div class="visual-shortcut-buttons">
-                <!-- Przycisk do zmiany motywu (Dark/Light) -->
-                <button id="theme-toggle-button" title="Toggle Dark/Light Theme">
-                    <svg class="sun-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
-                    <svg class="moon-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
-                </button>
                 <!-- Przycisk do zarządzania kolorami -->
                 <div class="menu-container">
 <button id="color-controls-menu-button" title="Color Options">
@@ -5325,7 +5322,7 @@ body.dark-mode .status-icon-pending {
             <div id="link-handle-trigger" title="Add dependency">+</div>
             <div id="welcome-message-overlay">
                 <h2>No Processes Found</h2>
-                <p>This sheet doesn't contain any processes yet.</p>
+                <p>This dataset doesn't contain any processes yet.</p>
                 <p>
                     <strong>To get started:</strong>
                 </p>
@@ -5444,12 +5441,12 @@ body.dark-mode .status-icon-pending {
             <input type="hidden" id="process-edit-id">
             <!-- MODIFICATION START: Added Sheet Selector -->
             <div>
-                <label for="process-target-sheet-modal">Target Sheet:</label>
+                <label for="process-target-sheet-modal">Target Dataset:</label>
                 <select id="process-target-sheet-modal"></select>
                 <span class="error-message" id="error-process-target-sheet-modal"></span>
             </div>
             <!-- MODIFICATION END: Added Sheet Selector -->
-            <div><label for="process-id-modal">ID (unique within its sheet):</label><input type="text" id="process-id-modal"><span class="error-message" id="error-process-id-modal"></span></div>
+            <div><label for="process-id-modal">ID (unique within its dataset):</label><input type="text" id="process-id-modal"><span class="error-message" id="error-process-id-modal"></span></div>
             <div><label for="process-short-name-modal">Short name:</label><input type="text" id="process-short-name-modal"><span class="error-message" id="error-process-short-name-modal"></span></div>
             <div><label for="process-wd-modal">WD (number, e.g., -5, 1, 15):</label><input type="number" id="process-wd-modal" title="Cannot be 0. Negative values indicate previous month."><span class="error-message" id="error-process-wd-modal"></span></div>
             <div><label for="process-due-time-modal">Due time (HH:MM or HH:MM:SS):</label><input type="text" id="process-due-time-modal" placeholder="HH:MM or HH:MM:SS"><span class="error-message" id="error-process-due-time-modal"></span></div>
@@ -5492,7 +5489,7 @@ body.dark-mode .status-icon-pending {
     <div id="converter-panel">
         <button id="close-converter-panel-button" class="btn-fc btn-fc-close close-panel-button" title="Close Converter">&times;</button>
         <h1>XLSX to JSON Converter</h1>
-        <p>Select an XLSX file. Each sheet will be converted. The output JSON will be an object with sheet names as keys.</p>
+        <p>Select an XLSX file. Each dataset will be converted. The output JSON will be an object with dataset names as keys.</p>
         <div class="warning">
             <strong>Important:</strong> Ensure column names in your XLSX file match expected keys (e.g., "ID", "Short name", "Process Type"). The converter will attempt to process all sheets.
         </div>
@@ -5950,9 +5947,9 @@ body.dark-mode .status-icon-pending {
 // === NOWA, PROFESJONALNA KOLEKCJA MOTYWÓW KOLORYSTYCZNYCH v3 ===
 // =======================================================================
 const THEMES_BASE = [
-    // === KATEGORIA 1: MOTYWY MARKI BRIDGESTONE ===
+    // === KATEGORIA 1: MOTYWY FLOWCRAFT ===
     {
-        name: "Bridgestone Classic",
+        name: "FlowCraft Classic",
         node: '#F0F2F5',
         blockingNode: '#FFC107',
         informationalNode: '#CFD8DC',
@@ -5968,7 +5965,7 @@ const THEMES_BASE = [
         nodeSymbolColor: '#000000'
     },
     {
-        name: "Bridgestone Inverted",
+        name: "FlowCraft Dark",
         node: '#263238',
         blockingNode: '#FDD835',
         informationalNode: '#455A64',
@@ -5984,7 +5981,7 @@ const THEMES_BASE = [
         nodeSymbolColor: '#CFD8DC'
     },
     {
-        name: "Bridgestone Premium",
+        name: "FlowCraft Premium",
         node: '#FAFAFA',
         blockingNode: '#FFEB3B',
         informationalNode: '#F5F5F5',
@@ -6000,7 +5997,7 @@ const THEMES_BASE = [
         nodeSymbolColor: '#212121'
     },
     {
-        name: "Bridgestone Motorsport",
+        name: "FlowCraft Motorsport",
         node: '#1A1A1A',
         blockingNode: '#FFD600',
         informationalNode: '#2D2D2D',
@@ -6365,7 +6362,7 @@ let configColors = JSON.parse(JSON.stringify(THEMES[0]));    const expectedDiagr
                 await loadDataFromSupabase();
             }, 1000);
         } else {
-            showNotification("No sheet specified. Please access this page through the project manager.", "warning");
+            showNotification("No dataset specified. Please access this page through the project manager.", "warning");
         }
     }
 
@@ -6388,7 +6385,7 @@ let configColors = JSON.parse(JSON.stringify(THEMES[0]));    const expectedDiagr
             allDataSourceSheetNames = sheets.map(sheet => sheet.name);
             
             if (allDataSourceSheetNames.length === 0) {
-                showNotification("This project has no sheets. Please create a sheet in the project manager.", 'warning');
+                showNotification("This project has no datasets. Please create a dataset in the project manager.", 'warning');
             } else {
                 // If no sheet is currently selected, select the current sheet
                 if (selectedSheetViews.length === 0 && currentSheetData) {
@@ -6427,10 +6424,10 @@ let configColors = JSON.parse(JSON.stringify(THEMES[0]));    const expectedDiagr
             // Update page title
             document.title = `Diagram - ${sheet.name}`;
             
-            showNotification(`Loaded sheet: ${sheet.name}`, "success");
+            showNotification(`Loaded dataset: ${sheet.name}`, "success");
         } catch (error) {
             console.error('Error loading sheet data:', error);
-            showNotification("Error loading sheet data: " + error.message, "error");
+            showNotification("Error loading dataset: " + error.message, "error");
         }
     }
 
@@ -6533,10 +6530,10 @@ let configColors = JSON.parse(JSON.stringify(THEMES[0]));    const expectedDiagr
 
     document.getElementById('manage-columns-diagram-btn').addEventListener('click', () => {
         if (currentSheetId && currentSheetData) {
-            // Redirect to ProcessDiagramApp.html with current sheet to manage columns
+            // Redirect to ProcessDiagramApp.html with current sheet to manage processes
             window.location.href = `index.html?openSheet=${currentSheetId}&project=${currentProjectId}`;
         } else {
-            showNotification('Please load a sheet first to manage its columns.', 'warning');
+            showNotification('Please load a dataset first to manage its processes.', 'warning');
         }
     });
 
@@ -9122,14 +9119,14 @@ function loadStateFromLocalStorage() {
 	
 // ZASTĄP ISTNIEJĄCĄ FUNKCJĘ TĄ WERSJĄ
 function resetColorsToDefault() {
-    currentThemeIndex = 0; // Resetuj indeks do motywu domyślnego
-    configColors = JSON.parse(JSON.stringify(THEMES[0])); // Ustaw domyślny motyw
+    currentThemeIndex = 1; // Resetuj do dark theme jako domyślny
+    configColors = JSON.parse(JSON.stringify(THEMES[1])); // Ustaw dark theme jako domyślny
     
     initializeColorPickers();
     refreshDiagramStyles();
     saveStateToLocalStorage();
     
-    showNotification(`Theme reset to: ${THEMES[0].name}.`, "success");
+    showNotification(`Theme reset to: ${THEMES[1].name}.`, "success");
 }
 
 	// NOWA FUNKCJA GENEROWANIA LOSOWEGO MOTYWU FlowCraft 2025
@@ -13416,46 +13413,12 @@ function loadSelectedSimulationScenario(event) {
     initPanelResizer();
 	// START NOWYCH FUNKCJI I INICJALIZACJI
 
-function setupThemeToggle() {
-    const themeToggleButton = document.getElementById('theme-toggle-button');
-    const DARK_MODE_STORAGE_KEY = 'diagramDarkMode_V23';
-
-    function applyTheme(isDark) {
-        if (isDark) {
-            document.body.classList.add('dark-mode');
-        } else {
-            document.body.classList.remove('dark-mode');
-        }
-        localStorage.setItem(DARK_MODE_STORAGE_KEY, isDark ? 'enabled' : 'disabled');
-        refreshDiagramStyles();
-        updateStickyAxesContainerPositions(); 
-        updateStickyAxesLabels();
-        drawMiniMap();
-        updateMiniMapViewPort();
-    }
-
-    // Inicjalizacja przy ładowaniu strony
-    const isInitiallyDarkMode = localStorage.getItem(DARK_MODE_STORAGE_KEY) === 'enabled';
-    applyTheme(isInitiallyDarkMode);
-
-    themeToggleButton.addEventListener('click', () => {
-        const isNowDarkMode = !document.body.classList.contains('dark-mode');
-        applyTheme(isNowDarkMode);
-
-        // Jeśli przełączamy NA tryb ciemny, zastosuj dedykowany motyw
-        if (isNowDarkMode) {
-            // Używamy motywu "Bridgestone Inverted" (indeks 1) jako domyślnego dla dark mode
-            configColors = JSON.parse(JSON.stringify(THEMES[1]));
-            initializeColorPickers();
-            refreshDiagramStyles();
-            saveStateToLocalStorage();
-            showNotification(`Dark mode enabled with '${THEMES[1].name}' theme.`, "info");
-        } else {
-             // Można opcjonalnie zresetować do motywu jasnego
-             resetColorsToDefault();
-             showNotification("Light mode enabled.", "info");
-        }
-    });
+// Theme toggle function removed - dark mode is now the default and only theme
+function initializeDarkMode() {
+    // Always apply dark mode as default
+    document.body.classList.add('dark-mode');
+    // Set dark mode as enabled in localStorage
+    localStorage.setItem('diagramDarkMode_V23', 'enabled');
 }
 
 function syncColorsPanelWithConfig() {
@@ -13667,7 +13630,7 @@ async function initializeApplication() {
     }
 
     // Wywołanie nowych funkcji inicjalizujących
-    setupThemeToggle();
+    initializeDarkMode(); // Initialize dark mode as default
     setupColorControls();
     setupDetailsPanel();
     initializeApplication();
