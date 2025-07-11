@@ -13,8 +13,34 @@
       "Bash(pkill:*)",
       "Bash(ss:*)",
       "Bash(node:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(hostname:*)",
+      "Bash(killall:*)",
+      "Bash(npx:*)",
+      "Bash(SUPABASE_ACCESS_TOKEN=sbp_77062be88e1e58ed742d39281e20a9631ff5983b npx -y @supabase/mcp-server-supabase@latest --project-ref=jvzauyhkehucfvovjqjh)",
+      "Bash(claude mcp)",
+      "Bash(claude mcp:*)",
+      "Bash(xdg-open:*)",
+      "mcp__supabase__get_logs",
+      "mcp__supabase__list_tables",
+      "mcp__supabase__execute_sql",
+      "mcp__supabase__get_project_url",
+      "mcp__supabase__apply_migration",
+      "mcp__supabase__get_anon_key"
     ],
     "deny": []
+  },
+  "mcpServers": {
+    "supabase": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@supabase/mcp-server-supabase@latest",
+        "--project-ref=jvzauyhkehucfvovjqjh"
+      ],
+      "env": {
+        "SUPABASE_ACCESS_TOKEN": "sbp_77062be88e1e58ed742d39281e20a9631ff5983b"
+      }
+    }
   }
 }

@@ -6,7 +6,10 @@
 // Security Configuration
 const FlowCraftConfig = {
     // Environment detection
-    isDevelopment: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1',
+    isDevelopment: window.location.hostname === 'localhost' || 
+                   window.location.hostname === '127.0.0.1' ||
+                   window.location.protocol === 'file:' ||
+                   window.location.port === '8000',
     
     // Supabase Configuration
     supabase: {
