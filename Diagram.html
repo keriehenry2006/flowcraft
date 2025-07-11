@@ -10884,33 +10884,37 @@ function updateSimulationTargetsList() {
 function drawArrow(fromNode, toNode, color, arrowTypeClassesString, dependencyLinkType = 'standard', isImpactPath = false) {
     if (!fromNode || !toNode) return;
 
-    const isSimulatedSource = isSimulationModeActive && (simulationTargets.some(t => t.id === fromNode.dataset.id && (t.type === 'shift' || t.type === 'add')));
-    const isSimulatedTarget = isSimulationModeActive && (simulationTargets.some(t => t.id === toNode.dataset.id && (t.type === 'shift' || t.type === 'add')));
-
-    let fromLayout = nodeLayouts[fromNode.dataset.id];
-    let toLayout = nodeLayouts[toNode.dataset.id];
-
     let x1, y1, x2, y2;
 
-    if (isSimulatedSource) {
+    // In simulation mode, always use current visual positions (getBoundingClientRect)
+    // because nodeLayouts contains outdated positions from before simulation
+    if (isSimulationModeActive) {
         const fromRect = fromNode.getBoundingClientRect();
         const diagramRect = diagramContainer.getBoundingClientRect();
         x1 = (fromRect.left - diagramRect.left + diagramContainer.scrollLeft + (fromRect.width / 2)) / currentZoom;
         y1 = (fromRect.top - diagramRect.top + diagramContainer.scrollTop + (fromRect.height / 2)) / currentZoom;
-    } else if (fromLayout) {
-        x1 = (fromLayout.finalX + fromLayout.width / 2);
-        y1 = (fromLayout.finalY + fromLayout.height / 2);
-    } else { return; }
-
-    if (isSimulatedTarget) {
+        
         const toRect = toNode.getBoundingClientRect();
-        const diagramRect = diagramContainer.getBoundingClientRect();
         x2 = (toRect.left - diagramRect.left + diagramContainer.scrollLeft + (toRect.width / 2)) / currentZoom;
         y2 = (toRect.top - diagramRect.top + diagramContainer.scrollTop + (toRect.height / 2)) / currentZoom;
-    } else if (toLayout) {
-        x2 = (toLayout.finalX + toLayout.width / 2);
-        y2 = (toLayout.finalY + toLayout.height / 2);
-    } else { return; }
+    } else {
+        // In normal mode, use nodeLayouts for precise positioning
+        const isSimulatedSource = false; // Not needed anymore
+        const isSimulatedTarget = false; // Not needed anymore
+        
+        let fromLayout = nodeLayouts[fromNode.dataset.id];
+        let toLayout = nodeLayouts[toNode.dataset.id];
+        
+        if (fromLayout) {
+            x1 = (fromLayout.finalX + fromLayout.width / 2);
+            y1 = (fromLayout.finalY + fromLayout.height / 2);
+        } else { return; }
+        
+        if (toLayout) {
+            x2 = (toLayout.finalX + toLayout.width / 2);
+            y2 = (toLayout.finalY + toLayout.height / 2);
+        } else { return; }
+    }
 
     const line = document.createElementNS(SVG_NS, 'line');
     line.setAttribute('x1', x1);
@@ -12910,8 +12914,52 @@ function applySimulationVisuals(newSimulatedNodeData = null) {
     impactListHTML += '</ul>';
     simulationImpactListContainer.innerHTML = impactListHTML;
 
+    // Dodaj rysowanie wszystkich strzałek zależności w symulacji
+    drawAllDependencyArrowsInSimulation();
+    
     drawMiniMap();
     updateMiniMapViewPort();
+}
+
+// Function to draw all dependency arrows during simulation
+function drawAllDependencyArrowsInSimulation() {
+    if (!isSimulationModeActive) return;
+    
+    const allProcsData = getAllProcessesFromData();
+    
+    // Draw all dependency arrows between processes
+    allProcsData.forEach(proc => {
+        if (!proc.Dependencies) return;
+        
+        const targetNode = diagramPane.querySelector(`.process-node[data-id="${proc.ID}"]`);
+        if (!targetNode) return;
+        
+        const deps = String(proc.Dependencies).split(',').map(d => parseDependencyEntry(d.trim()));
+        deps.forEach(dep => {
+            const sourceNode = diagramPane.querySelector(`.process-node[data-id="${dep.id}"]`);
+            if (!sourceNode) return;
+            
+            // Skip if this arrow is already drawn as impact arrow
+            const hasImpactArrow = sourceNode.classList.contains('simulation-ok-input') ||
+                                 sourceNode.classList.contains('simulation-input-conflict') ||
+                                 targetNode.classList.contains('simulation-ok-output') ||
+                                 targetNode.classList.contains('simulation-output-at-risk');
+            
+            if (!hasImpactArrow) {
+                // Draw normal dependency arrow with appropriate color
+                let arrowColor = configColors.outputArrow;
+                let finalDepType = dep.type || 'standard';
+                
+                if (finalDepType === 'blocking') {
+                    arrowColor = configColors.outputArrowBlocking;
+                } else if (finalDepType === 'informational') {
+                    arrowColor = configColors.outputArrowInformational;
+                }
+                
+                drawArrow(sourceNode, targetNode, arrowColor, 'simulation-normal-arrow', finalDepType, false);
+            }
+        });
+    });
 }
 
 // === KONIEC OSTATECZNEJ WERSJI FUNKCJI JAVASCRIPT ===

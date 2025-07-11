@@ -2505,3 +2505,317 @@ console.log('📊 Updated global gWdColumnWidth to:', gWdColumnWidth);
 ---
 
 *Debug log utworzony 2025-07-10 | FlowCraft v2.0*
+
+---
+
+## 🐛 PROBLEM: Strzałki zależności nie są rysowane podczas symulacji (2025-07-11 12:30)
+
+### **Opis problemu:**
+- Podczas symulacji procesy były prawidłowo wyświetlane i przesuwane
+- Strzałki zależności między procesami nie były rysowane lub były niepełne
+- Tylko strzałki wpływu symulacji (impact arrows) były widoczne - czerwone, pomarańczowe, zielone
+- Normalne strzałki zależności (standardowe, blocking, informational) nie były wyświetlane
+
+### **Przyczyny zidentyfikowane:**
+
+#### 1. **Brak mechanizmu rysowania normalnych strzałek w symulacji**
+```javascript
+// PROBLEM - function applySimulationVisuals() nie rysuje normalnych strzałek
+function applySimulationVisuals() {
+    svgLayer.innerHTML = ''; // Czyści wszystkie strzałki
+    // ...
+    // Rysuje tylko impact arrows ale nie normalne dependency arrows
+    drawArrow(sourceNode, targetNode, '#dc3545', 'simulation-arrow-broken', dep.type, true); // Tylko impact
+}
+```
+
+#### 2. **refreshDiagramStyles() nie jest wywoływana w symulacji**
+```javascript
+// PROBLEM - refreshDiagramStyles() pomija tryb symulacji
+function refreshDiagramStyles() {
+    if (isSimulationModeActive) {
+        applySimulationVisuals(simulatedNewProcessData); 
+        return; // Kończy tutaj - nie rysuje normalnych strzałek
+    }
+    // ... kod rysowania strzałek tylko dla normalnego trybu
+}
+```
+
+#### 3. **Brak funkcji do rysowania wszystkich strzałek zależności**
+- `drawArrow()` funkcja istnieje i działa prawidłowo
+- Ale nie było funkcji która rysuje wszystkie strzałki zależności w symulacji
+- Tylko impact analysis rysował specjalne strzałki
+
+### **Rozwiązanie zaimplementowane:**
+
+#### **Nowa funkcja `drawAllDependencyArrowsInSimulation()` (Diagram.html:12920-12959)**
+```javascript
+// DODANE - funkcja rysująca wszystkie strzałki zależności podczas symulacji
+function drawAllDependencyArrowsInSimulation() {
+    if (!isSimulationModeActive) return;
+    
+    const allProcsData = getAllProcessesFromData();
+    
+    // Draw all dependency arrows between processes
+    allProcsData.forEach(proc => {
+        if (!proc.Dependencies) return;
+        
+        const targetNode = diagramPane.querySelector(`.process-node[data-id="${proc.ID}"]`);
+        if (!targetNode) return;
+        
+        const deps = String(proc.Dependencies).split(',').map(d => parseDependencyEntry(d.trim()));
+        deps.forEach(dep => {
+            const sourceNode = diagramPane.querySelector(`.process-node[data-id="${dep.id}"]`);
+            if (!sourceNode) return;
+            
+            // Skip if this arrow is already drawn as impact arrow
+            const hasImpactArrow = sourceNode.classList.contains('simulation-ok-input') ||
+                                 sourceNode.classList.contains('simulation-input-conflict') ||
+                                 targetNode.classList.contains('simulation-ok-output') ||
+                                 targetNode.classList.contains('simulation-output-at-risk');
+            
+            if (!hasImpactArrow) {
+                // Draw normal dependency arrow with appropriate color
+                let arrowColor = configColors.outputArrow;
+                let finalDepType = dep.type || 'standard';
+                
+                if (finalDepType === 'blocking') {
+                    arrowColor = configColors.outputArrowBlocking;
+                } else if (finalDepType === 'informational') {
+                    arrowColor = configColors.outputArrowInformational;
+                }
+                
+                drawArrow(sourceNode, targetNode, arrowColor, 'simulation-normal-arrow', finalDepType, false);
+            }
+        });
+    });
+}
+```
+
+#### **Wywołanie funkcji w applySimulationVisuals() (Diagram.html:12914)**
+```javascript
+// DODANE - wywołanie rysowania wszystkich strzałek
+function applySimulationVisuals() {
+    // ... existing code ...
+    
+    // Dodaj rysowanie wszystkich strzałek zależności w symulacji
+    drawAllDependencyArrowsInSimulation();
+    
+    drawMiniMap();
+    updateMiniMapViewPort();
+}
+```
+
+### **Kluczowe funkcje naprawki:**
+
+#### **1. Inteligentne wykrywanie duplikatów**
+```javascript
+// Sprawdza czy strzałka już istnieje jako impact arrow
+const hasImpactArrow = sourceNode.classList.contains('simulation-ok-input') ||
+                     sourceNode.classList.contains('simulation-input-conflict') ||
+                     targetNode.classList.contains('simulation-ok-output') ||
+                     targetNode.classList.contains('simulation-output-at-risk');
+```
+
+#### **2. Właściwe kolory strzałek**
+```javascript
+// Używa configColors dla spójności z resztą aplikacji
+let arrowColor = configColors.outputArrow;
+if (finalDepType === 'blocking') {
+    arrowColor = configColors.outputArrowBlocking;
+} else if (finalDepType === 'informational') {
+    arrowColor = configColors.outputArrowInformational;
+}
+```
+
+#### **3. Klasyfikacja strzałek**
+```javascript
+// Używa klasy 'simulation-normal-arrow' dla łatwego rozpoznania
+drawArrow(sourceNode, targetNode, arrowColor, 'simulation-normal-arrow', finalDepType, false);
+```
+
+### **Hierarchia strzałek w symulacji:**
+1. **Impact arrows** (najwyższy priorytet): czerwone, pomarańczowe, zielone
+2. **Normal dependency arrows**: standardowe kolory zależności
+3. **Brak duplikatów**: jedna strzałka na zależność
+
+### **Testowanie:**
+1. Otwórz diagram z procesami i zależnościami
+2. Aktywuj tryb symulacji
+3. Sprawdź czy wszystkie strzałki zależności są widoczne
+4. Sprawdź czy impact arrows mają priorytet nad normalnymi strzałkami
+
+### **Pliki zmienione:**
+- **Diagram.html**: 
+  - Linia 12914: Dodano wywołanie `drawAllDependencyArrowsInSimulation()`
+  - Linie 12920-12959: Nowa funkcja `drawAllDependencyArrowsInSimulation()`
+
+### **Jak uniknąć w przyszłości:**
+- Zawsze testuj rysowanie strzałek w różnych trybach (normalny, symulacja, tree highlight)
+- Sprawdź czy `svgLayer.innerHTML = ''` nie usuwa potrzebnych strzałek
+- Upewnij się, że każdy tryb ma mechanizm rysowania wszystkich potrzebnych strzałek
+- Testuj z różnymi typami zależności (standard, blocking, informational)
+
+### **Objawy do rozpoznania:**
+- Procesy są widoczne w symulacji ale brak strzałek między nimi
+- Tylko kolorowe impact arrows są widoczne
+- Diagram wygląda "rozłączony" mimo istniejących zależności
+- Console nie pokazuje błędów ale strzałki nie są rysowane
+
+### **Status:**
+- ✅ Funkcja `drawAllDependencyArrowsInSimulation()` dodana
+- ✅ Inteligentne wykrywanie duplikatów zaimplementowane
+- ✅ Właściwe kolory i typy strzałek zachowane
+- ✅ Wywołanie funkcji w `applySimulationVisuals()` dodane
+- ✅ Wszystkie strzałki zależności teraz rysowane w symulacji
+
+*Problem naprawiony: 2025-07-11 12:30*
+
+---
+
+## 🐛 PROBLEM: Strzałki w symulacji używają błędnych pozycji początkowych/końcowych (2025-07-11 12:45)
+
+### **Opis problemu:**
+- Po naprawieniu rysowania strzałek w symulacji, strzałki były rysowane ale z błędnymi pozycjami
+- Strzałka od "Create FA" do "Amortyzacja" zaczynała się "z powietrza" zamiast od procesu "Create FA"
+- "Create FA" był na pozycji WD -2, ale strzałka zaczynała się z lewej strony ekranu
+- Problem występował gdy jeden proces jest przesunięty w symulacji a drugi nie
+
+### **Przyczyny zidentyfikowane:**
+
+#### **Root Cause: Mieszanie systemów pozycjonowania**
+```javascript
+// PROBLEM - funkcja drawArrow() używała różnych systemów pozycjonowania
+function drawArrow(fromNode, toNode, color, arrowTypeClassesString, dependencyLinkType = 'standard', isImpactPath = false) {
+    const isSimulatedSource = isSimulationModeActive && (simulationTargets.some(t => t.id === fromNode.dataset.id && (t.type === 'shift' || t.type === 'add')));
+    const isSimulatedTarget = isSimulationModeActive && (simulationTargets.some(t => t.id === toNode.dataset.id && (t.type === 'shift' || t.type === 'add')));
+    
+    // PROBLEM: Symulowane węzły używały getBoundingClientRect() (aktualne pozycje)
+    if (isSimulatedSource) {
+        const fromRect = fromNode.getBoundingClientRect();
+        // ... calculate x1, y1
+    } else if (fromLayout) {
+        // PROBLEM: Nie-symulowane węzły używały nodeLayouts (stare pozycje sprzed symulacji)
+        x1 = (fromLayout.finalX + fromLayout.width / 2);
+        y1 = (fromLayout.finalY + fromLayout.height / 2);
+    }
+}
+```
+
+#### **Szczegółowy flow błędu:**
+1. **"Create FA"** nie jest w `simulationTargets` (nie jest przesuwany przez user)
+2. **"Amortyzacja"** jest w `simulationTargets` (jest przesuwana przez user)
+3. **Strzałka od "Create FA" do "Amortyzacja"**:
+   - `isSimulatedSource = false` → używa `nodeLayouts["Create FA"]` (stare pozycje)
+   - `isSimulatedTarget = true` → używa `getBoundingClientRect()` (aktualne pozycje)
+4. **Rezultat**: Strzałka zaczyna się ze starej pozycji "Create FA" ale kończy w nowej pozycji "Amortyzacja"
+
+#### **Kluczowy problem z nodeLayouts:**
+```javascript
+// W trybie symulacji applySimulationVisuals() aktualizuje wizualne pozycje wszystkich procesów
+// ale nodeLayouts zawiera stare pozycje sprzed symulacji
+node.style.left = `${newLeft}px`;  // Visual position updated
+node.style.top = `${newTop}px`;    // Visual position updated
+// ale nodeLayouts["Create FA"].finalX/Y są nadal stare!
+```
+
+### **Rozwiązanie zaimplementowane:**
+
+#### **Uproszczona logika pozycjonowania w drawArrow() (Diagram.html:10887-10917)**
+```javascript
+// POPRAWIONE - w trybie symulacji zawsze używaj aktualnych pozycji
+function drawArrow(fromNode, toNode, color, arrowTypeClassesString, dependencyLinkType = 'standard', isImpactPath = false) {
+    if (!fromNode || !toNode) return;
+
+    let x1, y1, x2, y2;
+
+    // In simulation mode, always use current visual positions (getBoundingClientRect)
+    // because nodeLayouts contains outdated positions from before simulation
+    if (isSimulationModeActive) {
+        const fromRect = fromNode.getBoundingClientRect();
+        const diagramRect = diagramContainer.getBoundingClientRect();
+        x1 = (fromRect.left - diagramRect.left + diagramContainer.scrollLeft + (fromRect.width / 2)) / currentZoom;
+        y1 = (fromRect.top - diagramRect.top + diagramContainer.scrollTop + (fromRect.height / 2)) / currentZoom;
+        
+        const toRect = toNode.getBoundingClientRect();
+        x2 = (toRect.left - diagramRect.left + diagramContainer.scrollLeft + (toRect.width / 2)) / currentZoom;
+        y2 = (toRect.top - diagramRect.top + diagramContainer.scrollTop + (toRect.height / 2)) / currentZoom;
+    } else {
+        // In normal mode, use nodeLayouts for precise positioning
+        let fromLayout = nodeLayouts[fromNode.dataset.id];
+        let toLayout = nodeLayouts[toNode.dataset.id];
+        
+        if (fromLayout) {
+            x1 = (fromLayout.finalX + fromLayout.width / 2);
+            y1 = (fromLayout.finalY + fromLayout.height / 2);
+        } else { return; }
+        
+        if (toLayout) {
+            x2 = (toLayout.finalX + toLayout.width / 2);
+            y2 = (toLayout.finalY + toLayout.height / 2);
+        } else { return; }
+    }
+    // ... rest of function
+}
+```
+
+### **Kluczowe zmiany:**
+
+#### **1. Jeden system pozycjonowania na tryb**
+```javascript
+// PRZED: Mieszanie systemów
+if (isSimulatedSource) { /* getBoundingClientRect */ }
+else { /* nodeLayouts */ }
+
+// PO: Jeden system dla całego trybu
+if (isSimulationModeActive) { /* getBoundingClientRect for ALL nodes */ }
+else { /* nodeLayouts for ALL nodes */ }
+```
+
+#### **2. Eliminacja problemów z cache**
+- **Symulacja**: `getBoundingClientRect()` zawsze zwraca aktualne pozycje
+- **Normalny tryb**: `nodeLayouts` zawiera precyzyjne pozycje
+
+#### **3. Prostota i spójność**
+- Usunięto skomplikowaną logikę `isSimulatedSource/Target`
+- Jeden path dla każdego trybu
+- Łatwiejsze debugowanie i testowanie
+
+### **Testowanie:**
+1. Otwórz diagram z procesami i zależnościami
+2. Aktywuj tryb symulacji i przesuń proces
+3. Sprawdź czy strzałki zaczynają się i kończą w poprawnych pozycjach
+4. Sprawdź proces nieprzesunięty - czy jego strzałki są prawidłowe
+
+### **Przypadki testowe:**
+- **Strzałka od przesuniętego do nieprzesuniętego**: Powinno działać
+- **Strzałka od nieprzesuniętego do przesuniętego**: Powinno działać (to był główny problem)
+- **Strzałka między dwoma przesuniętymi**: Powinno działać
+- **Strzałka między dwoma nieprzesuniętymi**: Powinno działać
+
+### **Pliki zmienione:**
+- **Diagram.html**: 
+  - Linie 10887-10917: Uproszczona logika pozycjonowania w `drawArrow()`
+  - Usunięto skomplikowaną logikę `isSimulatedSource/Target`
+
+### **Jak uniknąć w przyszłości:**
+- **Jedna metoda pozycjonowania na tryb**: Nie mieszaj `getBoundingClientRect()` z `nodeLayouts`
+- **Aktualizuj cache**: Jeśli używasz `nodeLayouts`, upewnij się że są aktualne
+- **Testuj mieszane scenariusze**: Strzałki między przesuniętymi i nieprzesuniętymi procesami
+- **Sprawdź relatywność**: `getBoundingClientRect()` zwraca pozycje względem viewport
+
+### **Objawy do rozpoznania:**
+- Strzałki "lecą z powietrza" zamiast od procesów
+- Strzałki kończą się w powietrzu zamiast na procesach
+- Strzałki są OK w normalnym trybie ale błędne w symulacji
+- Niektóre strzałki OK ale inne błędne w tym samym trybie
+
+### **Status:**
+- ✅ Uproszczona logika pozycjonowania w `drawArrow()`
+- ✅ Jeden system pozycjonowania na tryb
+- ✅ Eliminacja problemów z cache `nodeLayouts`
+- ✅ Wszystkie strzałki używają spójnych pozycji w symulacji
+
+*Problem naprawiony: 2025-07-11 12:45*
+
+---
