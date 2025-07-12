@@ -757,7 +757,7 @@ class FlowCraftErrorHandler {
     /**
      * Invite user to project
      */
-    async inviteUserToProject(projectId, email, role = 'VIEW_ONLY') {
+    async inviteUserToProject(projectId, email, role = 'VIEW_ONLY', customMessage = '') {
         const validRoles = ['FULL_ACCESS', 'EDIT_ACCESS', 'VIEW_ONLY'];
         if (!validRoles.includes(role)) {
             throw new Error('Invalid role. Must be one of: FULL_ACCESS, EDIT_ACCESS, VIEW_ONLY');
@@ -771,16 +771,89 @@ class FlowCraftErrorHandler {
         const invitationToken = this.generateInvitationToken();
         const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
-        return await this.executeSupabaseRequest(
-            () => window.supabaseClient.from('project_invitations').insert({
-                project_id: projectId,
-                email: email,
-                role: role,
-                invitation_token: invitationToken,
-                expires_at: expiresAt.toISOString()
-            }),
-            { loadingMessage: 'Sending invitation...' }
+        // Get current user and project details
+        const { data: { user }, error: userError } = await window.supabaseClient.auth.getUser();
+        if (userError || !user) {
+            throw new Error('Authentication required');
+        }
+
+        // Get project details
+        const projectResult = await this.executeSupabaseRequest(
+            () => window.supabaseClient
+                .from('projects')
+                .select('name, description')
+                .eq('id', projectId)
+                .single(),
+            { showLoading: false }
         );
+
+        if (!projectResult.data) {
+            throw new Error('Project not found');
+        }
+
+        const project = projectResult.data;
+
+        // Use the secure send_invitation function
+        const invitationResult = await this.executeSupabaseRequest(
+            () => window.supabaseClient.rpc('send_invitation', {
+                project_id_param: projectId,
+                email_param: email,
+                role_param: role,
+                invitation_token_param: invitationToken,
+                expires_at_param: expiresAt.toISOString()
+            }),
+            { loadingMessage: 'Creating invitation...' }
+        );
+
+        // Debug log to understand invitationResult structure
+        console.log('Invitation result from RPC:', invitationResult);
+        
+        // Get the created invitation details - handle both ID and object returns
+        let invitationData;
+        if (typeof invitationResult.data === 'string') {
+            // RPC returned ID, need to fetch the record
+            const getInvitationResult = await this.executeSupabaseRequest(
+                () => window.supabaseClient
+                    .from('project_invitations')
+                    .select('*')
+                    .eq('id', invitationResult.data)
+                    .single(),
+                { showLoading: false }
+            );
+            invitationData = getInvitationResult.data;
+        } else {
+            // RPC returned the full object
+            invitationData = invitationResult.data;
+        }
+
+        // Send invitation email regardless of create/update
+        try {
+            await this.sendInvitationEmail(
+                email,
+                project.name,
+                role,
+                invitationToken,
+                user.email || 'Project Owner',
+                customMessage
+            );
+            
+            // Email sent successfully, return success result
+            return {
+                data: invitationData,
+                emailSent: true,
+                message: 'Invitation created and email sent successfully'
+            };
+        } catch (emailError) {
+            console.warn('Email sending failed:', emailError);
+            
+            // Return partial success - invitation created but email failed
+            return {
+                data: invitationData,
+                emailSent: false,
+                emailError: emailError.message,
+                message: 'Invitation created but email delivery failed. User can still accept via direct link.'
+            };
+        }
     }
 
     /**
@@ -831,61 +904,6 @@ class FlowCraftErrorHandler {
     /**
      * Accept project invitation
      */
-    async acceptInvitation(invitationToken) {
-        // Get current user
-        const { data: { user }, error: userError } = await window.supabaseClient.auth.getUser();
-        
-        if (userError || !user) {
-            throw new Error('Authentication required');
-        }
-
-        // First get the invitation details
-        const invitationResult = await this.executeSupabaseRequest(
-            () => window.supabaseClient
-                .from('project_invitations')
-                .select('*')
-                .eq('invitation_token', invitationToken)
-                .eq('status', 'PENDING')
-                .single(),
-            { loadingMessage: 'Validating invitation...' }
-        );
-
-        if (!invitationResult.data) {
-            throw new Error('Invalid or expired invitation');
-        }
-
-        const invitation = invitationResult.data;
-
-        // Check if invitation is expired
-        if (new Date(invitation.expires_at) < new Date()) {
-            throw new Error('Invitation has expired');
-        }
-
-        // Add user to project members
-        const memberResult = await this.executeSupabaseRequest(
-            () => window.supabaseClient.from('project_members').insert({
-                project_id: invitation.project_id,
-                user_id: user.id,
-                role: invitation.role,
-                invited_by: invitation.invited_by
-            }),
-            { loadingMessage: 'Accepting invitation...' }
-        );
-
-        // Update invitation status
-        await this.executeSupabaseRequest(
-            () => window.supabaseClient
-                .from('project_invitations')
-                .update({
-                    status: 'ACCEPTED',
-                    accepted_at: new Date().toISOString()
-                })
-                .eq('id', invitation.id),
-            { showLoading: false }
-        );
-
-        return memberResult;
-    }
 
     /**
      * Remove project member
@@ -896,9 +914,84 @@ class FlowCraftErrorHandler {
                 .from('project_members')
                 .delete()
                 .eq('project_id', projectId)
-                .eq('user_id', userId),
+                .eq('user_id', userId)
+                .select('*'),
             { loadingMessage: 'Removing member...' }
         );
+    }
+
+    /**
+     * Cleanup expired invitations
+     */
+    async cleanupExpiredInvitations(projectId) {
+        try {
+            const result = await this.executeSupabaseRequest(
+                () => window.supabaseClient
+                    .from('project_invitations')
+                    .update({ status: 'EXPIRED' })
+                    .eq('project_id', projectId)
+                    .eq('status', 'PENDING')
+                    .lt('expires_at', new Date().toISOString()),
+                { showLoading: false }
+            );
+            
+            if (result.data && result.data.length > 0) {
+                console.log(`Cleaned up ${result.data.length} expired invitations`);
+            }
+            
+            return result;
+        } catch (error) {
+            console.warn('Could not cleanup expired invitations:', error);
+            return { data: [] };
+        }
+    }
+
+    /**
+     * Check if user is already a member or has pending invitation
+     */
+    async checkUserInvitationStatus(projectId, email) {
+        try {
+            // First cleanup expired invitations
+            await this.cleanupExpiredInvitations(projectId);
+            
+            // Skip member check for now - we'll check during invitation acceptance
+            // This avoids the SQL parsing issue with auth.users joins
+            
+            // Check for pending invitations
+            const invitationResult = await this.executeSupabaseRequest(
+                () => window.supabaseClient
+                    .from('project_invitations')
+                    .select('*')
+                    .eq('project_id', projectId)
+                    .eq('email', email)
+                    .eq('status', 'PENDING'),
+                { showLoading: false }
+            );
+            
+            if (invitationResult.data && invitationResult.data.length > 0) {
+                return { status: 'PENDING', data: invitationResult.data[0] };
+            }
+            
+            // Check for any other invitation status (ACCEPTED, EXPIRED, REVOKED)
+            const allInvitationsResult = await this.executeSupabaseRequest(
+                () => window.supabaseClient
+                    .from('project_invitations')
+                    .select('*')
+                    .eq('project_id', projectId)
+                    .eq('email', email),
+                { showLoading: false }
+            );
+            
+            if (allInvitationsResult.data && allInvitationsResult.data.length > 0) {
+                const invitation = allInvitationsResult.data[0];
+                return { status: invitation.status, data: invitation };
+            }
+            
+            return { status: 'NONE', data: null };
+        } catch (error) {
+            console.warn('Could not check user invitation status:', error);
+            return { status: 'UNKNOWN', data: null };
+        }
     }
 
     /**
@@ -915,7 +1008,8 @@ class FlowCraftErrorHandler {
                 .from('project_members')
                 .update({ role: newRole })
                 .eq('project_id', projectId)
-                .eq('user_id', userId),
+                .eq('user_id', userId)
+                .select('*'),
             { loadingMessage: 'Updating role...' }
         );
     }
@@ -1003,7 +1097,7 @@ class FlowCraftErrorHandler {
                 .select('*')
                 .eq('year', year)
                 .eq('month', month)
-                .single(),
+                .limit(1),
             { loadingMessage: 'Loading calendar...' }
         );
     }
@@ -1243,6 +1337,300 @@ class FlowCraftErrorHandler {
     // UTILITY FUNCTIONS
     // =====================================================
 
+    // =====================================================
+    // EMAIL SERVICE METHODS
+    // =====================================================
+
+    /**
+     * Accept project invitation
+     */
+    async acceptInvitation(invitationToken) {
+        try {
+            // Get current user
+            const { data: { user }, error: userError } = await window.supabaseClient.auth.getUser();
+            if (userError || !user) {
+                throw new Error('Authentication required');
+            }
+
+            console.log('Accepting invitation for user:', user.email);
+
+            // Find invitation by token - fix column name issue
+            const invitationResult = await this.executeSupabaseRequest(
+                () => window.supabaseClient
+                    .from('project_invitations')
+                    .select('*')
+                    .eq('invitation_token', invitationToken)
+                    .limit(1),
+                { showLoading: false }
+            );
+
+            if (!invitationResult.data || invitationResult.data.length === 0) {
+                throw new Error('Invitation not found');
+            }
+
+            const invitation = invitationResult.data[0];
+            console.log('Found invitation:', {
+                id: invitation.id,
+                status: invitation.status,
+                email: invitation.email, // Fix: use 'email' not 'invited_email'
+                project_id: invitation.project_id,
+                expires_at: invitation.expires_at
+            });
+
+            // Check if invitation is for the correct email
+            if (invitation.email !== user.email) {
+                throw new Error('This invitation is not for your email address');
+            }
+
+            // Check if invitation is expired
+            const expiresAt = new Date(invitation.expires_at);
+            if (expiresAt < new Date()) {
+                throw new Error('Invitation has expired');
+            }
+
+            // Check if already accepted
+            if (invitation.status === 'ACCEPTED') {
+                throw new Error('Invitation already accepted');
+            }
+
+            // Check if user is already a member
+            const existingMember = await this.executeSupabaseRequest(
+                () => window.supabaseClient
+                    .from('project_members')
+                    .select('id, role')
+                    .eq('project_id', invitation.project_id)
+                    .eq('user_id', user.id)
+                    .limit(1),
+                { showLoading: false }
+            );
+
+            if (existingMember.data && existingMember.data.length > 0) {
+                // Update invitation status even if already member
+                await this.executeSupabaseRequest(
+                    () => window.supabaseClient
+                        .from('project_invitations')
+                        .update({
+                            status: 'ACCEPTED',
+                            accepted_at: new Date().toISOString()
+                        })
+                        .eq('id', invitation.id),
+                    { showLoading: false }
+                );
+                
+                throw new Error('You are already a member of this project');
+            }
+
+            // Add user to project_members with better error handling
+            const memberData = {
+                project_id: invitation.project_id,
+                user_id: user.id,
+                role: invitation.role,
+                invited_by: invitation.invited_by,
+                joined_at: new Date().toISOString()
+            };
+
+            console.log('Inserting member data:', memberData);
+
+            const memberResult = await this.executeSupabaseRequest(
+                () => window.supabaseClient
+                    .from('project_members')
+                    .insert(memberData)
+                    .select('*'),
+                { 
+                    loadingMessage: 'Adding you to the project...',
+                    timeout: 10000
+                }
+            );
+
+            if (memberResult.error) {
+                console.error('Member insert error details:', memberResult.error);
+                
+                // Handle specific RLS errors
+                if (memberResult.error.message.includes('row-level security policy')) {
+                    // Try with service role or alternative approach
+                    throw new Error('Permission denied. Please ensure you have access to join this project.');
+                }
+                
+                throw new Error(`Failed to add member: ${memberResult.error.message}`);
+            }
+
+            console.log('Member added successfully:', memberResult.data);
+
+            // Update invitation status to ACCEPTED
+            const updateResult = await this.executeSupabaseRequest(
+                () => window.supabaseClient
+                    .from('project_invitations')
+                    .update({
+                        status: 'ACCEPTED',
+                        accepted_at: new Date().toISOString()
+                    })
+                    .eq('id', invitation.id),
+                { showLoading: false }
+            );
+
+            if (updateResult.error) {
+                console.warn('Failed to update invitation status:', updateResult.error);
+                // Don't fail the whole operation for this
+            }
+
+            return { 
+                data: memberResult.data?.[0], 
+                invitation: invitation,
+                success: true 
+            };
+
+        } catch (error) {
+            console.error('Accept invitation error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Send invitation email using Resend
+     */
+    async sendInvitationEmail(recipientEmail, projectName, role, invitationToken, inviterEmail, customMessage = '') {
+        // Use production URL for invitation links
+        const siteUrl = window.location.hostname === 'localhost' 
+            ? 'https://flowcraft.bronskipatryk.pl'
+            : window.location.origin;
+        
+        const emailPayload = {
+            to: recipientEmail,
+            projectName: projectName,
+            role: role,
+            invitationToken: invitationToken,
+            inviterEmail: inviterEmail,
+            customMessage: customMessage,
+            siteUrl: siteUrl
+        };
+
+        try {
+            // Try Edge Function first
+            const edgeFunctionUrl = `https://hbwnghrfhyikcywixjqn.supabase.co/functions/v1/send-invitation-email`;
+            
+            console.log('Sending email via Edge Function:', emailPayload);
+            
+            const response = await fetch(edgeFunctionUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${window.FlowCraftConfig.supabase.anonKey}`
+                },
+                body: JSON.stringify(emailPayload)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(`Email sending failed: ${errorData.error || response.statusText}`);
+            }
+
+            const result = await response.json();
+            console.log('Email sent successfully:', result);
+            return result;
+        } catch (error) {
+            console.error('Email sending error:', error);
+            
+            // Handle different error types
+            if (error.message.includes('Failed to fetch') || error.message.includes('404')) {
+                console.warn('Edge Function not available, email service not configured');
+                throw new Error('Email service is not configured. Invitation created but email not sent.');
+            } else if (error.message.includes('CORS')) {
+                console.warn('CORS error with Edge Function');
+                throw new Error('Email service configuration error. Invitation created but email not sent.');
+            }
+            
+            throw error;
+        }
+    }
+
+    /**
+     * Generate invitation email HTML
+     */
+    generateInvitationEmailHtml(projectName, roleText, invitationUrl, inviterEmail, customMessage, siteUrl) {
+        const logoUrl = `${window.location.origin}/assets/flowcraft-logo.png`;
+        
+        return `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlowCraft Project Invitation</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background: #f5f5f5; }
+        .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 8px; overflow: hidden; }
+        .header { background: linear-gradient(135deg, #00D4FF 0%, #8B5CF6 100%); padding: 40px 20px; text-align: center; }
+        .header h1 { color: white; margin: 0; font-size: 28px; font-weight: 700; }
+        .content { padding: 40px; }
+        .content h2 { color: #1a1a1a; margin: 0 0 20px 0; font-size: 24px; }
+        .content p { color: #666; line-height: 1.6; margin: 0 0 20px 0; }
+        .project-info { background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; }
+        .project-info h3 { color: #1a1a1a; margin: 0 0 10px 0; font-size: 18px; }
+        .project-info p { color: #666; margin: 0; }
+        .cta-button { display: inline-block; background: linear-gradient(135deg, #00D4FF 0%, #8B5CF6 100%); color: white; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; margin: 20px 0; }
+        .cta-button:hover { opacity: 0.9; }
+        .footer { background: #f8f9fa; padding: 20px; text-align: center; color: #666; font-size: 14px; }
+        .custom-message { background: #e3f2fd; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #2196f3; }
+        .custom-message h4 { color: #1976d2; margin: 0 0 10px 0; }
+        .custom-message p { color: #1976d2; margin: 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 FlowCraft</h1>
+        </div>
+        
+        <div class="content">
+            <h2>You've been invited to collaborate!</h2>
+            
+            <p>Hello there! 👋</p>
+            
+            <p><strong>${inviterEmail}</strong> has invited you to collaborate on their FlowCraft project.</p>
+            
+            <div class="project-info">
+                <h3>📊 Project: ${projectName}</h3>
+                <p><strong>Access Level:</strong> ${roleText}</p>
+                <p><strong>Valid for:</strong> 7 days</p>
+            </div>
+            
+            ${customMessage ? `
+                <div class="custom-message">
+                    <h4>💬 Personal Message</h4>
+                    <p>${customMessage}</p>
+                </div>
+            ` : ''}
+            
+            <p>FlowCraft is a powerful project management tool that helps teams visualize and optimize their workflows. Click the button below to accept this invitation and start collaborating!</p>
+            
+            <div style="text-align: center;">
+                <a href="${invitationUrl}" class="cta-button">Accept Invitation</a>
+            </div>
+            
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <h3 style="color: #1a1a1a; margin: 0 0 10px 0; font-size: 16px;">🆕 Don't have an account?</h3>
+                <p style="color: #666; margin: 0;">No problem! You can register for free at <a href="${siteUrl}" style="color: #00D4FF; text-decoration: none; font-weight: bold;">FlowCraft</a> and then accept your invitation.</p>
+            </div>
+            
+            <p><strong>What you can do with ${roleText} access:</strong></p>
+            <ul>
+                ${roleText === 'view only' ? '<li>View project workflows and processes</li><li>Export diagrams and reports</li>' : ''}
+                ${roleText === 'edit access' ? '<li>View and edit workflows</li><li>Create and modify processes</li><li>Export diagrams and reports</li>' : ''}
+                ${roleText === 'full access' ? '<li>Full project management access</li><li>Invite and manage team members</li><li>Edit project settings</li><li>Create and modify workflows</li>' : ''}
+            </ul>
+            
+            <p><small>This invitation expires in 7 days. If you're having trouble with the button above, copy and paste this link into your browser: <a href="${invitationUrl}">${invitationUrl}</a></small></p>
+        </div>
+        
+        <div class="footer">
+            <p>This invitation was sent by ${inviterEmail} through FlowCraft.<br>
+            If you didn't expect this invitation, you can safely ignore this email.</p>
+        </div>
+    </div>
+</body>
+</html>`;
+    }
+
     /**
      * Generate secure invitation token
      */
@@ -1295,6 +1683,204 @@ class FlowCraftErrorHandler {
         };
 
         return stats;
+    }
+
+    /**
+     * Get user's pending invitations
+     */
+    async getUserPendingInvitations() {
+        try {
+            const { data: { user }, error: userError } = await window.supabaseClient.auth.getUser();
+            if (userError || !user) {
+                return { data: [] };
+            }
+
+            // First cleanup expired invitations
+            await this.executeSupabaseRequest(
+                () => window.supabaseClient
+                    .from('project_invitations')
+                    .update({ status: 'EXPIRED' })
+                    .eq('status', 'PENDING')
+                    .lt('expires_at', new Date().toISOString()),
+                { showLoading: false }
+            );
+
+            // Get pending invitations for this user's email (without join first to debug)
+            return await this.executeSupabaseRequest(
+                () => window.supabaseClient
+                    .from('project_invitations')
+                    .select('*')
+                    .eq('email', user.email)
+                    .eq('status', 'PENDING')
+                    .gt('expires_at', new Date().toISOString()),
+                { showLoading: false }
+            );
+        } catch (error) {
+            console.warn('Failed to get pending invitations:', error);
+            return { data: [] };
+        }
+    }
+
+    /**
+     * Show pending invitations notification
+     */
+    async showPendingInvitationsNotification() {
+        try {
+            const pendingInvitations = await this.getUserPendingInvitations();
+            
+            if (pendingInvitations.data && pendingInvitations.data.length > 0) {
+                const count = pendingInvitations.data.length;
+                
+                const message = count === 1 
+                    ? `You have a pending project invitation`
+                    : `You have ${count} pending project invitations`;
+                
+                // Show notification with action buttons
+                this.showInvitationNotification(message, pendingInvitations.data);
+            }
+        } catch (error) {
+            console.warn('Failed to check pending invitations:', error);
+        }
+    }
+
+    /**
+     * Show invitation notification with action buttons
+     */
+    showInvitationNotification(message, invitations) {
+        const notification = document.createElement('div');
+        notification.className = 'invitation-notification';
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
+            z-index: 10000;
+            max-width: 400px;
+            font-family: 'Inter', sans-serif;
+        `;
+        
+        notification.innerHTML = `
+            <div style="display: flex; align-items: center; margin-bottom: 12px;">
+                <div style="width: 24px; height: 24px; background: rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 12px;">
+                    📧
+                </div>
+                <strong>Project Invitations</strong>
+            </div>
+            <p style="margin: 0 0 16px 0; line-height: 1.4;">${message}</p>
+            <div style="display: flex; gap: 8px;">
+                <button onclick="this.parentElement.parentElement.remove()" style="background: rgba(255,255,255,0.2); color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                    Later
+                </button>
+                <button onclick="window.FlowCraftErrorHandler.showInvitationsList(${JSON.stringify(invitations).replace(/"/g, '&quot;')}); this.parentElement.parentElement.remove();" style="background: white; color: #667eea; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 14px;">
+                    View Invitations
+                </button>
+            </div>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Auto-hide after 10 seconds
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.remove();
+            }
+        }, 10000);
+    }
+
+    /**
+     * Show invitations list modal
+     */
+    showInvitationsList(invitations) {
+        const modal = document.createElement('div');
+        modal.className = 'invitation-modal';
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10001;
+            font-family: 'Inter', sans-serif;
+        `;
+        
+        const content = document.createElement('div');
+        content.style.cssText = `
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        `;
+        
+        const invitationCards = invitations.map(inv => `
+            <div style="border: 1px solid #e1e5e9; border-radius: 8px; padding: 16px; margin-bottom: 12px;">
+                <h4 style="margin: 0 0 8px 0; color: #1a1a1a;">Project Invitation</h4>
+                <p style="margin: 0 0 8px 0; color: #666; font-size: 14px;">You have been invited to join a project</p>
+                <p style="margin: 0 0 12px 0; color: #888; font-size: 12px;">Role: ${inv.role} • Expires: ${new Date(inv.expires_at).toLocaleDateString()}</p>
+                <button onclick="window.FlowCraftErrorHandler.acceptInvitationFromModal('${inv.invitation_token}', this)" style="background: #00D4FF; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 14px;">
+                    Accept Invitation
+                </button>
+            </div>
+        `).join('');
+        
+        content.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0; color: #1a1a1a;">Pending Invitations</h2>
+                <button onclick="this.closest('.invitation-modal').remove()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #666;">×</button>
+            </div>
+            ${invitationCards}
+        `;
+        
+        modal.appendChild(content);
+        document.body.appendChild(modal);
+        
+        // Close on outside click
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        });
+    }
+
+    /**
+     * Accept invitation from modal
+     */
+    async acceptInvitationFromModal(invitationToken, buttonElement) {
+        try {
+            buttonElement.disabled = true;
+            buttonElement.textContent = 'Accepting...';
+            
+            await this.acceptInvitation(invitationToken);
+            
+            buttonElement.textContent = 'Accepted!';
+            buttonElement.style.background = '#28a745';
+            
+            // Close modal and refresh page after success
+            setTimeout(() => {
+                document.querySelector('.invitation-modal')?.remove();
+                window.location.reload();
+            }, 1500);
+            
+        } catch (error) {
+            console.error('Failed to accept invitation:', error);
+            buttonElement.disabled = false;
+            buttonElement.textContent = 'Accept Invitation';
+            buttonElement.style.background = '#dc3545';
+            
+            setTimeout(() => {
+                buttonElement.style.background = '#00D4FF';
+            }, 2000);
+        }
     }
 }
 

@@ -258,6 +258,31 @@ GRANT SELECT ON sheet_summary TO authenticated;
 GRANT SELECT ON process_full TO authenticated;
 
 -- =====================================================
+-- 8.1. RLS POLICIES FOR auth.users TABLE ACCESS
+-- =====================================================
+
+-- Enable authenticated users to read auth.users for their own data and project members
+-- Note: auth.users already has RLS enabled by Supabase Auth
+CREATE POLICY IF NOT EXISTS "Users can view their own profile" ON auth.users
+    FOR SELECT USING (auth.uid() = id);
+
+CREATE POLICY IF NOT EXISTS "Users can view profiles of project members" ON auth.users
+    FOR SELECT USING (
+        id IN (
+            SELECT DISTINCT pm.user_id 
+            FROM public.project_members pm
+            JOIN public.projects p ON pm.project_id = p.id
+            WHERE p.user_id = auth.uid()
+        ) OR 
+        id IN (
+            SELECT DISTINCT p.user_id
+            FROM public.projects p
+            JOIN public.project_members pm ON p.id = pm.project_id
+            WHERE pm.user_id = auth.uid()
+        )
+    );
+
+-- =====================================================
 -- 9. PROJECT SHARING SYSTEM TABLES
 -- =====================================================
 
@@ -540,11 +565,11 @@ RETURNS DATE AS $$
 DECLARE
     start_date DATE;
     end_date DATE;
-    current_date DATE;
+    iter_date DATE;
     working_day_count INTEGER := 0;
     actual_wd INTEGER;
 BEGIN
-    -- Handle negative working days (previous month)
+    -- Handle negative working days (previous month, counting backwards from end)
     IF wd < 0 THEN
         actual_wd := ABS(wd);
         IF target_month = 1 THEN
@@ -553,24 +578,41 @@ BEGIN
         ELSE
             target_month := target_month - 1;
         END IF;
-    ELSE
-        actual_wd := wd;
-    END IF;
-    
-    start_date := DATE (target_year || '-' || target_month || '-01');
-    end_date := (start_date + INTERVAL '1 month - 1 day')::DATE;
-    current_date := start_date;
-    
-    WHILE current_date <= end_date LOOP
-        -- Skip weekends
-        IF EXTRACT(DOW FROM current_date) NOT IN (0, 6) THEN
-            working_day_count := working_day_count + 1;
-            IF working_day_count = actual_wd THEN
-                RETURN current_date;
+        
+        -- For negative working days, start from end of month and count backwards
+        start_date := DATE (target_year || '-' || target_month || '-01');
+        end_date := (start_date + INTERVAL '1 month - 1 day')::DATE;
+        iter_date := end_date; -- Start from last day of month
+        
+        WHILE iter_date >= start_date LOOP
+            -- Skip weekends
+            IF EXTRACT(DOW FROM iter_date) NOT IN (0, 6) THEN
+                working_day_count := working_day_count + 1;
+                IF working_day_count = actual_wd THEN
+                    RETURN iter_date;
+                END IF;
             END IF;
-        END IF;
-        current_date := current_date + INTERVAL '1 day';
-    END LOOP;
+            iter_date := iter_date - INTERVAL '1 day'; -- Count backwards
+        END LOOP;
+        
+    ELSE
+        -- For positive working days, count forward from start of month
+        actual_wd := wd;
+        start_date := DATE (target_year || '-' || target_month || '-01');
+        end_date := (start_date + INTERVAL '1 month - 1 day')::DATE;
+        iter_date := start_date;
+        
+        WHILE iter_date <= end_date LOOP
+            -- Skip weekends
+            IF EXTRACT(DOW FROM iter_date) NOT IN (0, 6) THEN
+                working_day_count := working_day_count + 1;
+                IF working_day_count = actual_wd THEN
+                    RETURN iter_date;
+                END IF;
+            END IF;
+            iter_date := iter_date + INTERVAL '1 day';
+        END LOOP;
+    END IF;
     
     RETURN NULL; -- Working day not found
 END;
@@ -602,7 +644,7 @@ GRANT ALL ON public.process_status_history TO authenticated;
 -- 15. UPDATED VIEWS
 -- =====================================================
 
--- Update process_full view to include new columns
+-- Update process_full view to include new columns (without auth.users join to avoid RLS issues)
 DROP VIEW IF EXISTS process_full;
 CREATE OR REPLACE VIEW process_full AS
 SELECT 
@@ -611,15 +653,129 @@ SELECT
     s.custom_fields as sheet_custom_fields,
     p.name as project_name,
     p.user_id as owner_id,
-    u.email as assigned_to_email,
     CASE 
         WHEN pr.status = 'OVERDUE' AND pr.due_date < CURRENT_DATE THEN true
         ELSE false
     END as is_overdue
 FROM public.processes pr
 JOIN public.sheets s ON pr.sheet_id = s.id
-JOIN public.projects p ON s.project_id = p.id
-LEFT JOIN auth.users u ON pr.assigned_to = u.id;
+JOIN public.projects p ON s.project_id = p.id;
+
+-- Create a function to get assigned user email separately when needed
+CREATE OR REPLACE FUNCTION get_assigned_user_email(user_id UUID)
+RETURNS TEXT AS $$
+DECLARE
+    user_email TEXT;
+BEGIN
+    SELECT email INTO user_email FROM auth.users WHERE id = user_id;
+    RETURN user_email;
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN NULL;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- =====================================================
+-- 16. INVITATION MANAGEMENT FUNCTIONS
+-- =====================================================
+
+-- Function to safely revoke invitation
+CREATE OR REPLACE FUNCTION revoke_invitation(invitation_id UUID)
+RETURNS BOOLEAN AS $$
+DECLARE
+    project_owner UUID;
+    invitation_project UUID;
+BEGIN
+    -- Get the project_id for this invitation
+    SELECT project_id INTO invitation_project
+    FROM public.project_invitations 
+    WHERE id = invitation_id;
+    
+    IF invitation_project IS NULL THEN
+        RETURN FALSE; -- Invitation not found
+    END IF;
+    
+    -- Check if current user is the project owner
+    SELECT user_id INTO project_owner
+    FROM public.projects 
+    WHERE id = invitation_project;
+    
+    IF project_owner != auth.uid() THEN
+        RETURN FALSE; -- Not authorized
+    END IF;
+    
+    -- Update invitation status to REVOKED
+    UPDATE public.project_invitations 
+    SET status = 'REVOKED'
+    WHERE id = invitation_id;
+    
+    RETURN TRUE;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to safely send invitation (create invitation record)
+CREATE OR REPLACE FUNCTION send_invitation(
+    project_id_param UUID,
+    email_param VARCHAR(255),
+    role_param VARCHAR(20),
+    invitation_token_param VARCHAR(255),
+    expires_at_param TIMESTAMP WITH TIME ZONE
+)
+RETURNS UUID AS $$
+DECLARE
+    project_owner UUID;
+    new_invitation_id UUID;
+BEGIN
+    -- Check if current user is the project owner
+    SELECT user_id INTO project_owner
+    FROM public.projects 
+    WHERE id = project_id_param;
+    
+    IF project_owner != auth.uid() THEN
+        RAISE EXCEPTION 'Not authorized to send invitations for this project';
+    END IF;
+    
+    -- Check if invitation already exists for this email and project
+    SELECT id INTO new_invitation_id
+    FROM public.project_invitations
+    WHERE project_id = project_id_param AND email = email_param;
+    
+    IF new_invitation_id IS NOT NULL THEN
+        -- Update existing invitation
+        UPDATE public.project_invitations 
+        SET 
+            role = role_param,
+            invitation_token = invitation_token_param,
+            expires_at = expires_at_param,
+            status = 'PENDING',
+            created_at = NOW()
+        WHERE id = new_invitation_id;
+        
+        RETURN new_invitation_id;
+    ELSE
+        -- Create new invitation
+        INSERT INTO public.project_invitations (
+            project_id, 
+            email, 
+            role, 
+            invitation_token, 
+            invited_by, 
+            expires_at, 
+            status
+        ) VALUES (
+            project_id_param,
+            email_param,
+            role_param,
+            invitation_token_param,
+            auth.uid(),
+            expires_at_param,
+            'PENDING'
+        ) RETURNING id INTO new_invitation_id;
+        
+        RETURN new_invitation_id;
+    END IF;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- =====================================================
 -- MIGRATION COMPLETE

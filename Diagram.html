@@ -6357,10 +6357,12 @@ let configColors = JSON.parse(JSON.stringify(THEMES[0]));    const expectedDiagr
             saveStateToLocalStorage();
             
             // Optional: Force refresh status data after initial load to ensure latest data
-            setTimeout(async () => {
-                console.log('🔄 Force refreshing status data after initial load...');
-                await loadDataFromSupabase();
-            }, 1000);
+            // DISABLED: This was overriding multi-sheet selection with single sheet
+            // setTimeout(async () => {
+            //     console.log('🔄 Force refreshing status data after initial load...');
+            //     await loadDataFromSupabase();
+            // }, 1000);
+            console.log('Skipped single-sheet refresh to preserve multi-sheet selection');
         } else {
             showNotification("No dataset specified. Please access this page through the project manager.", "warning");
         }
@@ -6384,16 +6386,16 @@ let configColors = JSON.parse(JSON.stringify(THEMES[0]));    const expectedDiagr
             // Update allDataSourceSheetNames with all project sheets
             allDataSourceSheetNames = sheets.map(sheet => sheet.name);
             
+            console.log('=== WORKFLOW SELECTION DEBUG ===');
+            console.log('allDataSourceSheetNames:', allDataSourceSheetNames);
+            console.log('selectedSheetViews before:', selectedSheetViews);
+            
             if (allDataSourceSheetNames.length === 0) {
                 showNotification("This project has no datasets. Please create a dataset in the project manager.", 'warning');
             } else {
-                // If no sheet is currently selected, select the current sheet
-                if (selectedSheetViews.length === 0 && currentSheetData) {
-                    selectedSheetViews = [currentSheetData.name];
-                } else if (selectedSheetViews.length === 0 && allDataSourceSheetNames.length > 0) {
-                    // If no current sheet, select all sheets by default
-                    selectedSheetViews = [...allDataSourceSheetNames];
-                }
+                // ALWAYS select all sheets when loading project (force reset)
+                selectedSheetViews = [...allDataSourceSheetNames];
+                console.log('selectedSheetViews after force reset:', selectedSheetViews);
             }
 
             // Update the sheet selector dropdown in top menu
@@ -6483,17 +6485,21 @@ let configColors = JSON.parse(JSON.stringify(THEMES[0]));    const expectedDiagr
                 showNotification(`Process status synchronized from manager`, 'success');
                 
                 // Force refresh from database to ensure we have latest data
-                setTimeout(() => {
-                    console.log('Force refreshing from database after status update...');
-                    loadDataFromSupabase();
-                }, 1000);
+                // DISABLED: This was overriding multi-sheet selection
+                // setTimeout(() => {
+                //     console.log('Force refreshing from database after status update...');
+                //     loadDataFromSupabase();
+                // }, 1000);
+                console.log('Skipped single-sheet refresh after status update to preserve multi-sheet selection');
             } else {
                 console.warn(`Process with ID ${processId} not found in diagram data`);
                 console.log('Available process IDs:', 
                     Object.values(processesData).flat().map(p => `${p._databaseId} (${p["Short name"]})`));
                 // Try to reload from database as fallback
-                console.log('Attempting to reload data from database...');
-                loadDataFromSupabase();
+                // DISABLED: This would override multi-sheet selection
+                // console.log('Attempting to reload data from database...');
+                // loadDataFromSupabase();
+                console.log('Skipped database reload to preserve multi-sheet selection');
             }
         }
     });
@@ -6505,7 +6511,10 @@ let configColors = JSON.parse(JSON.stringify(THEMES[0]));    const expectedDiagr
             if (currentSheetId && Object.keys(processesData).length > 0) {
                 console.log('Performing periodic status refresh (10min interval)...');
                 try {
-                    await loadDataFromSupabase();
+                    // DISABLED: Use loadMultipleSheetsFromSupabase for multi-sheet support
+                    // await loadDataFromSupabase();
+                    await loadMultipleSheetsFromSupabase();
+                    renderDiagram();
                 } catch (error) {
                     console.warn('Periodic refresh failed:', error);
                 }
@@ -9009,7 +9018,9 @@ function loadStateFromLocalStorage() {
                 const savedState = JSON.parse(savedStateJSON);
                 
                 // Only load UI state, not process data (that comes from Supabase)
-                selectedSheetViews = Array.isArray(savedState.selectedSheetViews) ? savedState.selectedSheetViews : [];
+                // DON'T restore selectedSheetViews from localStorage - always use all project sheets
+                // selectedSheetViews = Array.isArray(savedState.selectedSheetViews) ? savedState.selectedSheetViews : [];
+                console.log('Skipping selectedSheetViews restore from localStorage - will use all project sheets');
 
                 currentZoom = savedState.currentZoom || 1;
                 currentAppliedFilters = savedState.currentAppliedFilters || {};
@@ -9887,7 +9898,7 @@ function drawSelectionDependenciesArrows(selectedProcess) {
         } else if (selectedSheetViews.length === 0) {
             selectionTextElement.textContent = 'Select sheets...';
         } else if (selectedSheetViews.length === allDataSourceSheetNames.length) {
-            selectionTextElement.textContent = 'All sheets';
+            selectionTextElement.textContent = 'All workflows';
         } else if (selectedSheetViews.length === 1) {
             selectionTextElement.textContent = selectedSheetViews[0];
         } else {

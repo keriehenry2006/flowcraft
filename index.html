@@ -6,11 +6,17 @@
     <title>FlowCraft - Project Manager</title>
     
     <!-- Security Headers -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://*.supabase.co;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://*.supabase.co https://api.resend.com;">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
     <meta name="csrf-token" content=""><!-- CSRF token will be set by JavaScript -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // Resend API Configuration
+        window.FLOWCRAFT_RESEND_API_KEY = 're_jBEa4feF_Nvz6ETCQX397aUm2kjSDbmoc';
+        window.FLOWCRAFT_FROM_EMAIL = 'noreply@flowcraft.bronskipatryk.pl';
+        window.FLOWCRAFT_FROM_NAME = 'FlowCraft';
+    </script>
     <script src="config.js"></script>
     <script src="flowcraft-error-handler.js"></script>
     <style>
@@ -1225,7 +1231,7 @@
             gap: 6px;
         }
 
-        /* Sheets View */
+        /* Workflows View */
         .sheets-view {
             display: none;
             padding: 40px 0;
@@ -2400,7 +2406,7 @@
             box-shadow: var(--fc-shadow-brutal);
             transition: all 0.3s ease;
             position: relative;
-            overflow: hidden;
+            overflow: visible;
         }
 
         .member-card:hover, .invitation-card:hover {
@@ -2462,6 +2468,8 @@
             display: flex;
             gap: 8px;
             align-items: center;
+            position: relative;
+            z-index: 10;
         }
 
         .member-joined, .invitation-created {
@@ -2553,11 +2561,14 @@
             position: absolute;
             background: var(--fc-dark-secondary);
             border: 2px solid var(--fc-border);
-            box-shadow: var(--fc-shadow-lg);
-            z-index: 1000;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+            z-index: 99999;
             min-width: 160px;
-            top: 100%;
+            top: calc(100% + 2px);
             left: 0;
+            border-radius: 6px;
+            overflow: visible;
+            max-height: 200px;
         }
 
         .role-dropdown-content.show {
@@ -2728,7 +2739,7 @@
             </section>
         </div>
 
-        <!-- Sheets View -->
+        <!-- Workflows View -->
         <div id="sheets-view" class="container sheets-view">
             <div class="breadcrumb">
                 <a href="#" id="back-to-projects">Projects</a>
@@ -2737,11 +2748,11 @@
             </div>
             <section class="projects-section">
                 <div class="section-header">
-                    <h2 class="section-title">Sheets</h2>
-                    <button class="btn-fc btn-fc-accent new-project-btn" id="new-sheet-btn">+ New Sheet</button>
+                    <h2 class="section-title">Workflows</h2>
+                    <button class="btn-fc btn-fc-accent new-project-btn" id="new-sheet-btn">+ New Workflow</button>
                 </div>
                 <div class="sheets-grid" id="sheets-grid">
-                    <!-- Sheets will be loaded here -->
+                    <!-- Workflows will be loaded here -->
                 </div>
             </section>
 
@@ -2774,7 +2785,7 @@
             <div class="breadcrumb">
                 <a href="#" id="back-to-projects-from-processes">Projects</a>
                 <span>/</span>
-                <a href="#" id="back-to-sheets">Sheets</a>
+                <a href="#" id="back-to-sheets">Workflows</a>
                 <span>/</span>
                 <span id="current-sheet-name"></span>
             </div>
@@ -2785,6 +2796,25 @@
                         <button class="btn-fc btn-fc-secondary btn-fc-sm" id="manage-columns-btn">⚙️ Manage Columns</button>
                         <button class="btn-fc btn-fc-accent new-project-btn" id="new-process-btn">+ New Process</button>
                         <button class="btn-fc btn-fc-primary btn-fc-sm" id="open-diagram-btn">📊 Open Diagram</button>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <select id="target-month-select" style="padding: 8px; background: var(--fc-dark-secondary); color: var(--fc-text-primary); border: 1px solid var(--fc-border);">
+                                <option value="1">January</option>
+                                <option value="2">February</option>
+                                <option value="3">March</option>
+                                <option value="4">April</option>
+                                <option value="5">May</option>
+                                <option value="6">June</option>
+                                <option value="7">July</option>
+                                <option value="8">August</option>
+                                <option value="9">September</option>
+                                <option value="10">October</option>
+                                <option value="11">November</option>
+                                <option value="12">December</option>
+                            </select>
+                            <select id="target-year-select" style="padding: 8px; background: var(--fc-dark-secondary); color: var(--fc-text-primary); border: 1px solid var(--fc-border);">
+                            </select>
+                            <button class="btn-fc btn-fc-warning btn-fc-sm" id="update-dates-btn">🗓️ Update Dates</button>
+                        </div>
                     </div>
                 </div>
                 <div id="processes-table-container">
@@ -2834,17 +2864,17 @@
         </div>
     </div>
 
-    <!-- Create Sheet Modal -->
+    <!-- Create Workflow Modal -->
     <div id="sheet-modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3 class="modal-title">Create New Sheet</h3>
+                <h3 class="modal-title">Create New Workflow</h3>
                 <button class="close-btn">&times;</button>
             </div>
             <form id="sheet-form">
                 <div class="form-group">
-                    <label for="sheet-name">Sheet Name</label>
-                    <input type="text" id="sheet-name" required minlength="2" maxlength="100" title="Sheet name should be 2-100 characters long">
+                    <label for="sheet-name">Workflow Name</label>
+                    <input type="text" id="sheet-name" required minlength="2" maxlength="100" title="Workflow name should be 2-100 characters long">
                 </div>
                 <div class="form-group">
                     <label for="sheet-description">Description</label>
@@ -2863,7 +2893,7 @@
                 </div>
                 
                 <div style="margin-top: 24px;">
-                    <button type="submit" class="btn-fc btn-fc-primary">Create Sheet</button>
+                    <button type="submit" class="btn-fc btn-fc-primary">Create Workflow</button>
                 </div>
             </form>
         </div>
@@ -2975,13 +3005,13 @@
                     <label for="invite-role">Access Level</label>
                     <select id="invite-role" required>
                         <option value="VIEW_ONLY">View Only - Can view processes and diagrams</option>
-                        <option value="EDIT_ACCESS">Edit Access - Can modify processes and create sheets</option>
+                        <option value="EDIT_ACCESS">Edit Access - Can modify processes and create workflows</option>
                         <option value="FULL_ACCESS">Full Access - Can manage everything except project deletion</option>
                     </select>
                 </div>
                 <div class="form-group">
                     <label for="invite-message">Personal Message (Optional)</label>
-                    <textarea id="invite-message" rows="3" placeholder="Add a personal message to the invitation..."></textarea>
+                    <textarea id="invite-message" rows="3" placeholder="Add a personal message to your invitation..."></textarea>
                 </div>
                 
                 <div style="margin-top: 24px; display: flex; gap: 12px;">
@@ -3135,10 +3165,22 @@
                 currentUser = user;
                 showDashboard();
                 
+                // Check for pending invitations and show notification
+                setTimeout(() => {
+                    window.FlowCraftErrorHandler.showPendingInvitationsNotification();
+                }, 2000);
+                
                 // Check for direct sheet access via URL parameters
                 const urlParams = new URLSearchParams(window.location.search);
                 const openSheetId = urlParams.get('openSheet');
                 const projectId = urlParams.get('project');
+                const invitation = urlParams.get('invitation');
+                
+                // Handle invitation token if present
+                if (invitation) {
+                    await handleInvitationToken(invitation);
+                    return;
+                }
                 
                 if (openSheetId && projectId) {
                     await loadProjectsAndOpenSheet(projectId, openSheetId);
@@ -3155,13 +3197,32 @@
                 // Load projects first
                 await loadProjects();
                 
-                // Find and set the current project
-                const { data: projects } = await supabaseClient
+                // Find and set the current project (check both owned and shared projects)
+                const { data: ownedProjects } = await supabaseClient
                     .from('projects')
                     .select('*')
                     .eq('user_id', currentUser.id);
-                    
-                const project = projects.find(p => p.id === projectId);
+                
+                // Also check projects where user is a member
+                const { data: memberProjects } = await supabaseClient
+                    .from('project_members')
+                    .select('project_id')
+                    .eq('user_id', currentUser.id);
+                
+                const memberProjectIds = memberProjects ? memberProjects.map(m => m.project_id) : [];
+                
+                let sharedProjects = [];
+                if (memberProjectIds.length > 0) {
+                    const { data: sharedProjectsData } = await supabaseClient
+                        .from('projects')
+                        .select('*')
+                        .in('id', memberProjectIds);
+                    sharedProjects = sharedProjectsData || [];
+                }
+                
+                // Combine owned and shared projects
+                const allProjects = [...(ownedProjects || []), ...sharedProjects];
+                const project = allProjects.find(p => p.id === projectId);
                 if (!project) {
                     showNotification('Project not found', 'error');
                     return;
@@ -3243,6 +3304,7 @@
             });
             document.getElementById('open-diagram-btn').addEventListener('click', openDiagramFromProcesses);
             document.getElementById('manage-columns-btn').addEventListener('click', openColumnsModal);
+            document.getElementById('update-dates-btn').addEventListener('click', updateProcessDates);
             document.getElementById('invite-member-btn').addEventListener('click', openInviteMemberModal);
 
             // Modals
@@ -3321,6 +3383,13 @@
                     currentUser = result.data.user;
                     showDashboard();
                     loadProjects();
+                    
+                    // Check for invitation token after login
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const invitationToken = urlParams.get('invitation');
+                    if (invitationToken) {
+                        handleInvitationToken(invitationToken);
+                    }
                 }, 1000);
 
             } catch (error) {
@@ -3504,18 +3573,78 @@
             document.getElementById('sheets-view').classList.remove('active');
             document.getElementById('processes-view').classList.add('active');
             document.getElementById('current-sheet-name').textContent = sheet.name;
+            initializeDateSelectors();
             loadProcesses();
+            // Auto-update dates for current month on first load
+            setTimeout(() => updateProcessDates(), 1000);
         }
 
         // Project management
         async function loadProjects() {
             try {
+                // Get projects where user is owner OR member
                 const result = await window.FlowCraftErrorHandler.executeSupabaseRequest(
-                    () => supabaseClient
-                        .from('projects')
-                        .select('*')
-                        .eq('user_id', currentUser.id)
-                        .order('created_at', { ascending: false }),
+                    async () => {
+                        // First get projects where user is owner
+                        const ownedProjectsResult = await supabaseClient
+                            .from('projects')
+                            .select('*')
+                            .eq('user_id', currentUser.id);
+                        
+                        if (ownedProjectsResult.error) {
+                            console.error('Error loading owned projects:', ownedProjectsResult.error);
+                        }
+                        
+                        // Add role info for owned projects
+                        const ownedProjects = (ownedProjectsResult.data || []).map(project => ({
+                            ...project,
+                            user_role: 'OWNER',
+                            is_member: false
+                        }));
+                        
+                        // Get project memberships
+                        const membershipResult = await supabaseClient
+                            .from('project_members')
+                            .select('project_id, role')
+                            .eq('user_id', currentUser.id);
+                        
+                        if (membershipResult.error) {
+                            console.error('Error loading project memberships:', membershipResult.error);
+                        }
+                        
+                        // Get project details for memberships
+                        let memberProjects = [];
+                        if (membershipResult.data && membershipResult.data.length > 0) {
+                            const projectIds = membershipResult.data.map(m => m.project_id);
+                            const memberProjectsResult = await supabaseClient
+                                .from('projects')
+                                .select('*')
+                                .in('id', projectIds);
+                            
+                            // Combine project data with role data
+                            memberProjects = (memberProjectsResult.data || []).map(project => {
+                                const membership = membershipResult.data.find(m => m.project_id === project.id);
+                                return {
+                                    ...project,
+                                    user_role: membership ? membership.role : 'VIEW_ONLY',
+                                    is_member: true
+                                };
+                            });
+                        }
+                        
+                        // Combine and deduplicate (in case user is both owner and member)
+                        const allProjects = [...ownedProjects];
+                        memberProjects.forEach(memberProject => {
+                            if (!allProjects.find(p => p.id === memberProject.id)) {
+                                allProjects.push(memberProject);
+                            }
+                        });
+                        
+                        // Sort by created_at descending
+                        allProjects.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                        
+                        return { data: allProjects, error: null };
+                    },
                     { 
                         loadingMessage: 'Loading projects...'
                     }
@@ -3568,18 +3697,38 @@
             const projectName = document.createElement('h3');
             projectName.className = 'project-name';
             projectName.textContent = project.name; // Safe text content
+            
+            // Add user role indicator
+            if (project.user_role && project.user_role !== 'OWNER') {
+                const roleIndicator = document.createElement('span');
+                roleIndicator.className = 'user-role-indicator';
+                roleIndicator.textContent = project.user_role.replace('_', ' ');
+                roleIndicator.style.cssText = `
+                    font-size: 12px; 
+                    background: var(--fc-neon-secondary); 
+                    color: white; 
+                    padding: 2px 8px; 
+                    border-radius: 12px; 
+                    margin-left: 8px;
+                    font-weight: 500;
+                `;
+                projectName.appendChild(roleIndicator);
+            }
+            
             projectHeader.appendChild(projectName);
             
-            // Add delete button
-            const deleteBtn = document.createElement('button');
-            deleteBtn.className = 'btn-delete-project';
-            deleteBtn.innerHTML = '🗑️';
-            deleteBtn.title = 'Delete Project';
-            deleteBtn.onclick = (e) => {
-                e.stopPropagation(); // Prevent card click
-                deleteProject(project.id, project.name);
-            };
-            projectHeader.appendChild(deleteBtn);
+            // Add delete button (only for project owners)
+            if (!project.is_member || project.user_role === 'OWNER') {
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'btn-delete-project';
+                deleteBtn.innerHTML = '🗑️';
+                deleteBtn.title = 'Delete Project';
+                deleteBtn.onclick = (e) => {
+                    e.stopPropagation(); // Prevent card click
+                    deleteProject(project.id, project.name);
+                };
+                projectHeader.appendChild(deleteBtn);
+            }
             
             const projectDescription = document.createElement('p');
             projectDescription.className = 'project-description';
@@ -3589,7 +3738,7 @@
             projectStats.className = 'project-stats';
             
             const sheetsSpan = document.createElement('span');
-            sheetsSpan.textContent = `📊 Sheets: ${project.sheet_count || 0}`;
+            sheetsSpan.textContent = `📊 Workflows: ${project.sheet_count || 0}`;
             
             const dateSpan = document.createElement('span');
             dateSpan.textContent = `📅 ${new Date(project.created_at).toLocaleDateString()}`;
@@ -3632,21 +3781,62 @@
 
         // Sheet management
         async function loadSheets() {
+            console.log('=== DEBUG loadSheets() ===');
+            console.log('Current project:', currentProject);
+            console.log('Project ID:', currentProject?.id);
+            console.log('User role in project:', currentProject?.user_role);
+            console.log('Is member:', currentProject?.is_member);
+            
+            // First test: Query ALL sheets without project filter to see RLS in action
+            console.log('Testing RLS: Querying ALL sheets (should only return accessible ones)');
+            const { data: allSheets, error: allError } = await supabaseClient
+                .from('sheets')
+                .select('*')
+                .order('created_at', { ascending: false });
+            
+            console.log('ALL sheets query (RLS filtered):', { data: allSheets, error: allError });
+            
+            // Second test: Query with project filter
             const { data: sheets, error } = await supabaseClient
                 .from('sheets')
                 .select('*')
                 .eq('project_id', currentProject.id)
                 .order('created_at', { ascending: false });
 
+            console.log('Project-filtered sheets query:', { data: sheets, error });
+            console.log('Number of sheets found:', sheets?.length || 0);
+            
+            // Third test: Check current user's memberships
+            console.log('Testing project memberships for current user:');
+            const { data: memberships, error: memberError } = await supabaseClient
+                .from('project_members')
+                .select('project_id, role')
+                .eq('user_id', currentUser.id);
+            
+            console.log('User memberships:', { data: memberships, error: memberError });
+
             if (error) {
-                showNotification('Error loading sheets', 'error');
+                console.error('Sheets loading error details:', error);
+                showNotification('Error loading workflows', 'error');
                 return;
             }
 
             const grid = document.getElementById('sheets-grid');
             grid.innerHTML = '';
 
+            if (!sheets || sheets.length === 0) {
+                grid.innerHTML = `
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px; color: var(--fc-text-muted);">
+                        <div style="font-size: 48px; margin-bottom: 16px;">📊</div>
+                        <h3 style="color: var(--fc-text-secondary); margin-bottom: 8px;">No Workflows Yet</h3>
+                        <p>Create your first workflow to get started</p>
+                    </div>
+                `;
+                return;
+            }
+
             sheets.forEach(sheet => {
+                console.log('Creating card for sheet:', sheet.name);
                 const card = createSheetCard(sheet);
                 grid.appendChild(card);
             });
@@ -3719,9 +3909,9 @@
                 .single();
 
             if (error) {
-                showNotification('Error creating sheet', 'error');
+                showNotification('Error creating workflow', 'error');
             } else {
-                showNotification('Sheet created successfully!', 'success');
+                showNotification('Workflow created successfully!', 'success');
                 closeModals();
                 loadSheets();
                 document.getElementById('sheet-form').reset();
@@ -3833,26 +4023,36 @@
 
             // Calculate deadline based on working day and current month
             const currentDate = new Date();
-            const currentMonth = currentDate.getMonth();
+            const currentMonth = currentDate.getMonth() + 1; // JavaScript months are 0-indexed, convert to 1-indexed
             const currentYear = currentDate.getFullYear();
             let deadline = 'Not set';
             
             if (process.working_day && process.due_time) {
-                // Calculate working day date (simplified - should be enhanced with actual working days logic)
-                const workingDay = parseInt(process.working_day);
-                let targetMonth = currentMonth;
-                let targetYear = currentYear;
-                
-                if (workingDay < 0) {
-                    targetMonth = currentMonth - 1;
-                    if (targetMonth < 0) {
-                        targetMonth = 11;
-                        targetYear--;
+                // Use proper working day calculation if available, otherwise fallback to simplified version
+                if (process.due_date) {
+                    // Use the calculated due_date from backend if available
+                    const dueDateTime = new Date(process.due_date);
+                    const timeParts = process.due_time.split(':');
+                    dueDateTime.setHours(parseInt(timeParts[0]), parseInt(timeParts[1]));
+                    deadline = dueDateTime.toLocaleDateString('pl-PL') + ' ' + process.due_time;
+                } else {
+                    // Fallback calculation for display purposes (not accurate for Wd calculations)
+                    const workingDay = parseInt(process.working_day);
+                    let targetMonth = currentMonth;
+                    let targetYear = currentYear;
+                    
+                    if (workingDay < 0) {
+                        targetMonth = currentMonth - 1;
+                        if (targetMonth <= 0) {
+                            targetMonth = 12;
+                            targetYear--;
+                        }
                     }
+                    
+                    // This is a simplified calculation - real working days should be calculated server-side
+                    const approximateDate = new Date(targetYear, targetMonth - 1, Math.abs(workingDay) * 2); // Rough approximation
+                    deadline = approximateDate.toLocaleDateString('pl-PL') + ' ' + process.due_time + ' (approx)';
                 }
-                
-                const targetDate = new Date(targetYear, targetMonth, Math.abs(workingDay));
-                deadline = targetDate.toLocaleDateString('pl-PL') + ' ' + process.due_time;
             }
             
             // Format status with icon
@@ -4879,22 +5079,69 @@
             }
             
             try {
+                // Check user invitation status (includes cleanup of expired invitations)
+                const userStatus = await window.FlowCraftErrorHandler.checkUserInvitationStatus(currentProject.id, email);
+                
+                if (userStatus.status === 'MEMBER') {
+                    showNotification(`${email} is already a member of this project.`, 'info');
+                    return;
+                }
+                
+                if (userStatus.status === 'PENDING') {
+                    const confirmResend = confirm(`There's already a pending invitation for ${email}. Do you want to send a new invitation?`);
+                    if (!confirmResend) {
+                        return;
+                    }
+                } else if (userStatus.status === 'EXPIRED' || userStatus.status === 'REVOKED') {
+                    // Allow sending new invitation for expired/revoked ones
+                    console.log(`Previous invitation was ${userStatus.status}, sending new one...`);
+                } else if (userStatus.status === 'ACCEPTED') {
+                    showNotification(`${email} has already accepted an invitation but may not be a full member yet.`, 'info');
+                    return;
+                }
+                
+                // Send the new invitation with custom message
                 const result = await window.FlowCraftErrorHandler.inviteUserToProject(
                     currentProject.id, 
                     email, 
-                    role
+                    role,
+                    message
                 );
                 
                 if (result.data) {
-                    showNotification(`Invitation sent to ${email}`, 'success');
+                    if (result.emailSent) {
+                        showNotification(`Invitation sent to ${email}`, 'success');
+                    } else {
+                        showNotification(`Invitation created for ${email}, but email delivery failed. They can still accept via direct link.`, 'warning');
+                        console.warn('Email delivery failed:', result.emailError);
+                    }
                     closeModals();
                     document.getElementById('invite-member-form').reset();
                     loadProjectMembers(); // Refresh the members list
                 } else {
-                    showNotification('Failed to send invitation', 'error');
+                    showNotification('Failed to create invitation', 'error');
                 }
             } catch (error) {
-                showNotification(error.message, 'error');
+                let errorMessage = error.message;
+                
+                // Handle specific error cases
+                if (error.message.includes('duplicate key value violates unique constraint')) {
+                    errorMessage = `Unexpected database constraint error. This should not happen with the new invitation system. Please try again or contact support.`;
+                } else if (error.message.includes('already a member')) {
+                    errorMessage = `This user is already a member of this project.`;
+                } else if (error.message.includes('Invalid email')) {
+                    errorMessage = 'Please enter a valid email address.';
+                } else if (error.message.includes('Email service not configured')) {
+                    errorMessage = 'Email service is not configured. The invitation has been created but no email was sent.';
+                    // Don't show as error if invitation was created successfully
+                    showNotification('Invitation created (email service not configured)', 'warning');
+                    closeModals();
+                    document.getElementById('invite-member-form').reset();
+                    loadProjectMembers();
+                    return;
+                }
+                
+                showNotification(errorMessage, 'error');
                 console.error('Invitation error:', error);
             }
         }
@@ -4912,6 +5159,28 @@
                 } catch (accessError) {
                     console.warn('Could not check project access, assuming owner access:', accessError);
                     // Continue with default owner access
+                }
+                
+                // Hide Project Members section for shared projects (user is not owner)
+                // Check if user is not the owner of the project  
+                console.log('=== PROJECT MEMBERS DEBUG ===');
+                console.log('currentProject.user_id:', currentProject.user_id);
+                console.log('currentUser.id:', currentUser.id);
+                console.log('access:', access);
+                
+                // Show Project Members section for:
+                // 1. Project owners (currentProject.user_id === currentUser.id)
+                // 2. Users with FULL_ACCESS role (they can manage invitations)
+                const isOwner = currentProject.user_id === currentUser.id;
+                const hasFullAccess = access.role === 'FULL_ACCESS';
+                
+                if (!isOwner && !hasFullAccess) {
+                    console.log('Hiding Project Members: not owner and no full access');
+                    document.getElementById('project-members-section').style.display = 'none';
+                    return;
+                } else {
+                    console.log('Showing Project Members: isOwner=', isOwner, 'hasFullAccess=', hasFullAccess);
+                    document.getElementById('project-members-section').style.display = 'block';
                 }
                 
                 if (!access.hasAccess && !access.isOwner) {
@@ -5049,14 +5318,17 @@
                     newRole
                 );
                 
-                if (result.data) {
-                    showNotification(`Role updated to ${newRole.replace('_', ' ')}`, 'success');
-                    loadProjectMembers();
-                } else {
-                    showNotification('Failed to update role', 'error');
+                // Check for error first, then success
+                if (result.error) {
+                    throw new Error(result.error.message);
                 }
+                
+                // Update operation succeeded - always reload members
+                showNotification(`Role updated to ${newRole.replace('_', ' ')}`, 'success');
+                loadProjectMembers();
+                
             } catch (error) {
-                showNotification(error.message, 'error');
+                showNotification(error.message || 'Failed to update role', 'error');
                 console.error('Role change error:', error);
             }
             
@@ -5078,14 +5350,17 @@
                     userId
                 );
                 
-                if (result.data) {
-                    showNotification(`${email} has been removed from the project`, 'success');
-                    loadProjectMembers();
-                } else {
-                    showNotification('Failed to remove member', 'error');
+                // Check for error first, then success
+                if (result.error) {
+                    throw new Error(result.error.message);
                 }
+                
+                // Delete operation succeeded - always reload members
+                showNotification(`${email} has been removed from the project`, 'success');
+                loadProjectMembers();
+                
             } catch (error) {
-                showNotification(error.message, 'error');
+                showNotification(error.message || 'Failed to remove member', 'error');
                 console.error('Remove member error:', error);
             }
         }
@@ -5098,21 +5373,21 @@
             
             try {
                 const result = await window.FlowCraftErrorHandler.executeSupabaseRequest(
-                    () => supabaseClient
-                        .from('project_invitations')
-                        .update({ status: 'REVOKED' })
-                        .eq('id', invitationId),
+                    () => supabaseClient.rpc('revoke_invitation', { invitation_id: invitationId }),
                     { loadingMessage: 'Revoking invitation...' }
                 );
                 
-                if (result.data) {
-                    showNotification(`Invitation for ${email} has been revoked`, 'success');
-                    loadProjectMembers();
-                } else {
-                    showNotification('Failed to revoke invitation', 'error');
+                // Check for error first, then success
+                if (result.error) {
+                    throw new Error(result.error.message);
                 }
+                
+                // Update operation succeeded - always reload members
+                showNotification(`Invitation for ${email} has been revoked`, 'success');
+                loadProjectMembers();
+                
             } catch (error) {
-                showNotification(error.message, 'error');
+                showNotification(error.message || 'Failed to revoke invitation', 'error');
                 console.error('Revoke invitation error:', error);
             }
         }
@@ -5126,6 +5401,113 @@
             }
         });
 
+        // Initialize date selectors
+        function initializeDateSelectors() {
+            const currentDate = new Date();
+            const currentYear = currentDate.getFullYear();
+            const currentMonth = currentDate.getMonth() + 1;
+            
+            // Populate year selector (current year and next 2 years)
+            const yearSelect = document.getElementById('target-year-select');
+            yearSelect.innerHTML = '';
+            for (let year = currentYear - 1; year <= currentYear + 2; year++) {
+                const option = document.createElement('option');
+                option.value = year;
+                option.textContent = year;
+                if (year === currentYear) option.selected = true;
+                yearSelect.appendChild(option);
+            }
+            
+            // Set current month
+            document.getElementById('target-month-select').value = currentMonth;
+            
+            // Add event listeners for automatic updates
+            document.getElementById('target-month-select').addEventListener('change', autoUpdateDatesOnChange);
+            document.getElementById('target-year-select').addEventListener('change', autoUpdateDatesOnChange);
+        }
+
+        // Auto-update dates when month/year changes
+        async function autoUpdateDatesOnChange() {
+            if (currentSheet) {
+                await updateProcessDates();
+            }
+        }
+
+        // Update process due dates
+        async function updateProcessDates() {
+            if (!currentSheet) {
+                showNotification('No workflow selected', 'error');
+                return;
+            }
+
+            try {
+                const targetMonth = parseInt(document.getElementById('target-month-select').value);
+                const targetYear = parseInt(document.getElementById('target-year-select').value);
+                
+                showNotification(`Updating process dates for ${getMonthName(targetMonth)} ${targetYear}...`, 'info');
+                
+                const result = await window.FlowCraftErrorHandler.updateProcessDueDates(
+                    currentSheet.id, 
+                    targetYear, 
+                    targetMonth
+                );
+                
+                if (result.message) {
+                    showNotification(result.message, 'success');
+                    // Reload processes to show updated dates
+                    loadProcesses(currentSheet.id);
+                } else {
+                    showNotification('Failed to update dates', 'error');
+                }
+            } catch (error) {
+                showNotification(error.message || 'Failed to update process dates', 'error');
+                console.error('Date update error:', error);
+            }
+        }
+
+        // Helper function to get month name
+        function getMonthName(monthNumber) {
+            const months = ['', 'January', 'February', 'March', 'April', 'May', 'June',
+                           'July', 'August', 'September', 'October', 'November', 'December'];
+            return months[monthNumber];
+        }
+
+        // Handle invitation token from URL
+        async function handleInvitationToken(invitationToken) {
+            try {
+                showNotification('Processing invitation...', 'info');
+                
+                const result = await window.FlowCraftErrorHandler.acceptInvitation(invitationToken);
+                
+                if (result.data) {
+                    showNotification('Invitation accepted successfully! Welcome to the project.', 'success');
+                    
+                    // Clear the invitation token from URL
+                    const url = new URL(window.location);
+                    url.searchParams.delete('invitation');
+                    window.history.replaceState({}, '', url);
+                    
+                    // Load projects to show the new project
+                    loadProjects();
+                } else {
+                    showNotification('Failed to accept invitation. Please try again.', 'error');
+                }
+            } catch (error) {
+                let errorMessage = 'Error accepting invitation';
+                
+                if (error.message.includes('expired')) {
+                    errorMessage = 'Invitation has expired. Please request a new one.';
+                } else if (error.message.includes('already accepted')) {
+                    errorMessage = 'You are already a member of this project.';
+                } else if (error.message.includes('Invalid or expired')) {
+                    errorMessage = 'Invalid or expired invitation link.';
+                }
+                
+                showNotification(errorMessage, 'error');
+                console.error('Invitation error:', error);
+            }
+        }
+
         // Modify existing showSheetsView function to load members
         const originalShowSheetsView = showSheetsView;
         showSheetsView = function(project) {
@@ -5135,6 +5517,73 @@
                 loadProjectMembers();
             }, 100);
             return result;
+        };
+
+        // =====================================================
+        // DEBUG AND CLEANUP FUNCTIONS
+        // =====================================================
+
+        // Debug function to clean up duplicate invitations
+        window.debugCleanupInvitations = async function(projectId = null) {
+            if (!projectId && !currentProject) {
+                console.error('No project selected. Use debugCleanupInvitations(projectId) or select a project first.');
+                return;
+            }
+            
+            const pid = projectId || currentProject.id;
+            
+            try {
+                // Get all invitations for the project
+                const invitations = await window.FlowCraftErrorHandler.getProjectInvitations(pid);
+                console.log('Current invitations:', invitations.data);
+                
+                // Group by email
+                const emailGroups = {};
+                invitations.data.forEach(inv => {
+                    if (!emailGroups[inv.email]) {
+                        emailGroups[inv.email] = [];
+                    }
+                    emailGroups[inv.email].push(inv);
+                });
+                
+                // Find duplicates
+                const duplicates = Object.entries(emailGroups).filter(([email, invs]) => invs.length > 1);
+                
+                if (duplicates.length === 0) {
+                    console.log('No duplicate invitations found.');
+                    return;
+                }
+                
+                console.log('Found duplicate invitations:', duplicates);
+                
+                // Clean up duplicates (keep the newest, revoke the older ones)
+                for (const [email, invs] of duplicates) {
+                    // Sort by created_at descending (newest first)
+                    invs.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                    
+                    // Revoke all but the first (newest)
+                    for (let i = 1; i < invs.length; i++) {
+                        const inv = invs[i];
+                        console.log(`Revoking old invitation for ${email}:`, inv.id);
+                        
+                        await window.FlowCraftErrorHandler.executeSupabaseRequest(
+                            () => window.supabaseClient
+                                .from('project_invitations')
+                                .update({ status: 'REVOKED' })
+                                .eq('id', inv.id),
+                            { loadingMessage: false }
+                        );
+                    }
+                }
+                
+                console.log('Cleanup completed. Refreshing member list...');
+                if (currentProject && currentProject.id === pid) {
+                    loadProjectMembers();
+                }
+                
+            } catch (error) {
+                console.error('Error during cleanup:', error);
+            }
         };
 
         // =====================================================
@@ -5360,7 +5809,7 @@
 
         // Delete project with confirmation
         async function deleteProject(projectId, projectName) {
-            if (!confirm(`Are you sure you want to delete project "${projectName}"?\n\nThis action cannot be undone and will delete all sheets and processes in this project.`)) {
+            if (!confirm(`Are you sure you want to delete project "${projectName}"?\n\nThis action cannot be undone and will delete all workflows and processes in this project.`)) {
                 return;
             }
 
@@ -5388,7 +5837,7 @@
 
         // Delete sheet with confirmation
         async function deleteSheet(sheetId, sheetName) {
-            if (!confirm(`Are you sure you want to delete sheet "${sheetName}"?\n\nThis action cannot be undone and will delete all processes in this sheet.`)) {
+            if (!confirm(`Are you sure you want to delete workflow "${sheetName}"?\n\nThis action cannot be undone and will delete all processes in this workflow.`)) {
                 return;
             }
 
@@ -5403,14 +5852,14 @@
                 );
 
                 if (result.error) {
-                    showNotification('Failed to delete sheet', 'error');
+                    showNotification('Failed to delete workflow', 'error');
                 } else {
-                    showNotification(`Sheet "${sheetName}" deleted successfully`, 'success');
+                    showNotification(`Workflow "${sheetName}" deleted successfully`, 'success');
                     loadSheets(); // Refresh the sheets list
                 }
             } catch (error) {
-                console.error('Error deleting sheet:', error);
-                showNotification('Error deleting sheet', 'error');
+                console.error('Error deleting workflow:', error);
+                showNotification('Error deleting workflow', 'error');
             }
         }
 

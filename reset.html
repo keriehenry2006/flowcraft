@@ -14,7 +14,6 @@
     <meta http-equiv="X-Frame-Options" content="DENY">
     <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
     <meta name="csrf-token" content=""><!-- CSRF token will be set by JavaScript -->
-    <script src="flowcraft-error-handler.js"></script>
     <style>
         :root {
             /* FlowCraft 2025 Futuristic Palette */
@@ -418,6 +417,9 @@
         // Inicjalizacja Supabase
         const { createClient } = supabase;
         const supabaseClient = createClient(supabaseConfig.url, supabaseConfig.anonKey);
+        
+        // Initialize FlowCraftErrorHandler
+        window.FlowCraftErrorHandler = new FlowCraftErrorHandler();
         
         // Elementy DOM
         const form = document.getElementById('reset-form');

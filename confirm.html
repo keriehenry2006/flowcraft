@@ -1,20 +1,25 @@
 <!DOCTYPE html>
-<html lang="pl">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Potwierdzenie konta - FlowCraft</title>
+    <title>Account Confirmation - FlowCraft</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // Resend API Configuration
+        window.FLOWCRAFT_RESEND_API_KEY = 're_jBEa4feF_Nvz6ETCQX397aUm2kjSDbmoc';
+        window.FLOWCRAFT_FROM_EMAIL = 'noreply@flowcraft.bronskipatryk.pl';
+        window.FLOWCRAFT_FROM_NAME = 'FlowCraft';
+    </script>
     <script src="config.js"></script>
     <script src="flowcraft-error-handler.js"></script>
     
     <!-- Security Headers -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://*.supabase.co; frame-ancestors 'none';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://*.supabase.co https://api.resend.com; frame-ancestors 'none';">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <meta http-equiv="X-Frame-Options" content="DENY">
     <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
     <meta name="csrf-token" content=""><!-- CSRF token will be set by JavaScript -->
-    <script src="flowcraft-error-handler.js"></script>
     <style>
         :root {
             /* FlowCraft 2025 Futuristic Palette */
@@ -181,6 +186,13 @@
             box-shadow: inset 0 0 20px rgba(255, 0, 110, 0.1);
         }
 
+        .status.warning {
+            background: rgba(255, 190, 11, 0.1);
+            color: var(--fc-neon-warning);
+            border-color: var(--fc-neon-warning);
+            box-shadow: inset 0 0 20px rgba(255, 190, 11, 0.1);
+        }
+
         .button {
             display: inline-block;
             padding: 16px 32px;
@@ -252,27 +264,35 @@
 <body>
     <div class="container">
         <div class="logo">✓</div>
-        <h1>Potwierdzenie konta</h1>
-        <p class="message">Weryfikujemy Twoje konto...</p>
+        <h1>Account Confirmation</h1>
+        <p class="message">Verifying your account...</p>
         
         <div id="status" class="status loading">
             <span class="spinner"></span>
-            Trwa potwierdzanie konta...
+            Account verification in progress...
         </div>
         
         <div id="action-container" style="display: none;">
-            <a href="/" class="button">Przejdź do aplikacji</a>
+            <a href="/" class="button">Go to Application</a>
         </div>
     </div>
 
     <script>
-        // Dane Supabase
-        // Secure Supabase configuration
-        const supabaseConfig = window.FlowCraftSecurity.getSupabaseConfig();
+        // Dane Supabase - use FlowCraftConfig with fallback
+        const supabaseConfig = window.FlowCraftConfig?.supabase || {
+            url: 'https://hbwnghrfhyikcywixjqn.supabase.co',
+            anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhid25naHJmaHlpa2N5d2l4anFuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEyMjE4MzMsImV4cCI6MjA2Njc5NzgzM30.IOEcWblDku7LlmfsEzF0j39rkyFhcJQWEm6TsFpNv2w'
+        };
         
         // Inicjalizacja Supabase
         const { createClient } = supabase;
         const supabaseClient = createClient(supabaseConfig.url, supabaseConfig.anonKey);
+        
+        // Make supabaseClient globally available for FlowCraftErrorHandler
+        window.supabaseClient = supabaseClient;
+        
+        // Initialize FlowCraftErrorHandler
+        window.FlowCraftErrorHandler = new FlowCraftErrorHandler();
         
         // Elementy DOM
         const statusEl = document.getElementById('status');
@@ -303,9 +323,17 @@
                 const urlParams = new URLSearchParams(window.location.search);
                 const token = urlParams.get('token');
                 const type = urlParams.get('type');
+                const invitation = urlParams.get('invitation');
                 
                 console.log('Token:', token);
                 console.log('Type:', type);
+                console.log('Invitation:', invitation);
+                
+                // Handle project invitation
+                if (invitation) {
+                    await handleProjectInvitation(invitation);
+                    return;
+                }
                 
                 if (!token) {
                     showStatus('error', '❌ Brak tokenu weryfikacyjnego', 'Link jest nieprawidłowy lub niekompletny.');
@@ -366,17 +394,112 @@
             }
         }
         
+        // Handle project invitation
+        async function handleProjectInvitation(invitationToken) {
+            try {
+                showStatus('loading', '📧 Przetwarzanie zaproszenia...', 'Sprawdzam szczegóły zaproszenia do projektu.');
+                
+                // First, let's validate the invitation token exists
+                if (!invitationToken) {
+                    showStatus('error', '❌ Brak tokenu zaproszenia', 'Link jest nieprawidłowy lub niekompletny.');
+                    return;
+                }
+                
+                console.log('Processing invitation token:', invitationToken);
+                
+                // Check if user is logged in
+                const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+                console.log('Current user check:', { user: user?.email, error: userError });
+                
+                if (userError || !user) {
+                    // User not logged in, show login/signup options
+                    showStatus('warning', '🔐 Wymagane logowanie', 'Aby zaakceptować zaproszenie, musisz się zalogować lub zarejestrować.');
+                    messageEl.textContent = 'Przekierowuję do logowania...';
+                    
+                    // Redirect to login page with invitation token
+                    setTimeout(() => {
+                        window.location.href = `/?invitation=${invitationToken}`;
+                    }, 2000);
+                    return;
+                }
+                
+                showStatus('loading', '🔄 Akceptuję zaproszenie...', `Dodaję użytkownika ${user.email} do projektu.`);
+                
+                // User is logged in, accept the invitation
+                const result = await window.FlowCraftErrorHandler.acceptInvitation(invitationToken);
+                console.log('Invitation acceptance result:', result);
+                
+                if (result && result.success) {
+                    showStatus('success', '✅ Zaproszenie zaakceptowane!', 'Zostałeś dodany do projektu. Możesz teraz współpracować z zespołem.');
+                    messageEl.textContent = 'Przekierowuję do aplikacji...';
+                    
+                    // Redirect to main application after success
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 2000);
+                } else {
+                    const errorMsg = result?.error?.message || 'Nieznany błąd podczas akceptacji zaproszenia';
+                    showStatus('error', '❌ Nie udało się zaakceptować zaproszenia', errorMsg);
+                    messageEl.textContent = 'Wystąpił problem z zaproszeniem.';
+                }
+                
+            } catch (error) {
+                console.error('Invitation error:', error);
+                let errorMessage = '❌ Błąd zaproszenia';
+                let errorDetails = error.message;
+                
+                if (error.message.includes('expired')) {
+                    errorMessage = '⏰ Zaproszenie wygasło';
+                    errorDetails = 'To zaproszenie wygasło. Poproś o nowe zaproszenie.';
+                } else if (error.message.includes('already')) {
+                    errorMessage = '✓ Zaproszenie już zaakceptowane';
+                    errorDetails = 'Jesteś już członkiem tego projektu.';
+                } else if (error.message.includes('Authentication required')) {
+                    errorMessage = '🔐 Wymagane logowanie';
+                    errorDetails = 'Aby zaakceptować zaproszenie, musisz się zalogować.';
+                    
+                    // Redirect to login with invitation token
+                    setTimeout(() => {
+                        window.location.href = `/?invitation=${invitationToken}`;
+                    }, 2000);
+                    return;
+                } else if (error.message.includes('not for your email')) {
+                    errorMessage = '❌ Nieprawidłowy adres email';
+                    errorDetails = 'To zaproszenie nie jest przeznaczone dla Twojego adresu email.';
+                } else if (error.message.includes('Permission denied')) {
+                    errorMessage = '🚫 Brak uprawnień';
+                    errorDetails = 'Nie masz uprawnień do dołączenia do tego projektu. Skontaktuj się z administratorem.';
+                }
+                
+                showStatus('error', errorMessage, errorDetails);
+                messageEl.textContent = 'Wystąpił problem z zaproszeniem.';
+            }
+        }
+        
         // Uruchom weryfikację po załadowaniu strony
         window.addEventListener('DOMContentLoaded', () => {
-            // Sprawdź czy mamy prawidłowe dane Supabase
-            if (SUPABASE_URL === 'YOUR_SUPABASE_URL' || SUPABASE_ANON_KEY === 'YOUR_SUPABASE_ANON_KEY') {
-                showStatus('error', '⚠️ Brak konfiguracji', 'Uzupełnij dane SUPABASE_URL i SUPABASE_ANON_KEY w kodzie.');
-                messageEl.textContent = 'Aplikacja nie jest skonfigurowana.';
-                return;
+            try {
+                console.log('DOMContentLoaded fired');
+                console.log('FlowCraftConfig:', window.FlowCraftConfig);
+                console.log('supabaseConfig:', supabaseConfig);
+                
+                // Sprawdź czy mamy prawidłowe dane Supabase
+                if (!supabaseConfig || !supabaseConfig.url || !supabaseConfig.anonKey || 
+                    supabaseConfig.url === 'YOUR_SUPABASE_URL' || supabaseConfig.anonKey === 'YOUR_SUPABASE_ANON_KEY') {
+                    console.error('Supabase configuration invalid:', supabaseConfig);
+                    showStatus('error', '⚠️ Configuration missing', 'Please configure SUPABASE_URL and SUPABASE_ANON_KEY.');
+                    messageEl.textContent = 'Application is not configured.';
+                    return;
+                }
+                
+                console.log('Starting account confirmation...');
+                // Rozpocznij weryfikację
+                confirmAccount();
+            } catch (error) {
+                console.error('Initialization error:', error);
+                showStatus('error', '❌ Initialization failed', `Error: ${error.message}`);
+                messageEl.textContent = 'Failed to initialize application.';
             }
-            
-            // Rozpocznij weryfikację
-            confirmAccount();
         });
     </script>
 </body>

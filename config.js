@@ -58,6 +58,45 @@ const FlowCraftConfig = {
         timeoutMinutes: 30,
         warningMinutes: 5,
         autoLogout: true
+    },
+    
+    // Email Service Configuration (Resend)
+    email: {
+        // Resend API configuration
+        apiKey: window.FLOWCRAFT_RESEND_API_KEY || null,
+        fromEmail: window.FLOWCRAFT_FROM_EMAIL || 'noreply@flowcraft.app',
+        fromName: window.FLOWCRAFT_FROM_NAME || 'FlowCraft',
+        
+        // Email templates
+        templates: {
+            projectInvitation: {
+                subject: 'You\'ve been invited to collaborate on a FlowCraft project',
+                template: 'project-invitation',
+                html: `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #0A0A0F; color: #FFFFFF; padding: 20px; border-radius: 10px;">
+                        <h2 style="color: #00D4FF; text-align: center;">🚀 FlowCraft Project Invitation</h2>
+                        <p>Hello!</p>
+                        <p>You've been invited to collaborate on the project <strong>{{projectName}}</strong> with <strong>{{role}}</strong> access.</p>
+                        <p>Invited by: {{inviterEmail}}</p>
+                        {{#if customMessage}}
+                        <div style="background-color: #1A1A2E; padding: 15px; border-radius: 5px; margin: 15px 0;">
+                            <p><strong>Personal message:</strong></p>
+                            <p>{{customMessage}}</p>
+                        </div>
+                        {{/if}}
+                        <div style="text-align: center; margin: 30px 0;">
+                            <a href="{{invitationUrl}}" style="background: linear-gradient(135deg, #00D4FF 0%, #FF006E 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">Accept Invitation</a>
+                        </div>
+                        <p><strong>Don't have an account?</strong> No problem! You can register for free at <a href="{{siteUrl}}" style="color: #00D4FF;">FlowCraft</a> and then accept your invitation.</p>
+                        <p style="color: #6B7280; font-size: 12px; margin-top: 20px;">This invitation will expire in 7 days. If you didn't expect this invitation, you can safely ignore this email.</p>
+                    </div>
+                `
+            },
+            invitationAccepted: {
+                subject: 'Project invitation accepted',
+                template: 'invitation-accepted'
+            }
+        }
     }
 };
 
