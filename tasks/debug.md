@@ -44,6 +44,59 @@
   - Auto-update on workflow load
   - Manual trigger still available
 
+## 2025-07-13 - CRITICAL VIEW Permission Security Fix
+
+### Problem 3: VIEW_ONLY Users Can Delete Workflows and Create New Workflows
+**Symptoms**: Users with "View" permission level can still see and interact with:
+- Delete buttons on workflow cards
+- "New Workflow" button in workflow section
+**Impact**: CRITICAL SECURITY ISSUE - Violates permission system design
+
+**Root Cause Analysis**:
+1. **Dangerous Fallback Permission** (`index.html:5351`):
+   ```javascript
+   let access = { hasAccess: true, isOwner: true, role: 'OWNER' }; // DEFAULT TO OWNER!
+   ```
+   When `checkProjectAccess()` failed, ALL users (including VIEW_ONLY) got OWNER permissions
+
+2. **Incomplete Permission Checks**:
+   - Delete button: `const canDelete = isOwner || (userAccess && userAccess.role === 'FULL_ACCESS');`
+   - New Workflow: `const canCreateWorkflows = isOwner || access.role === 'FULL_ACCESS';`
+   - Problem: If `isOwner` was `true` (due to fallback), permission checks passed
+
+**Solution Implemented**:
+1. **Fixed Fallback Logic** (`index.html:5351-5356`):
+   ```javascript
+   const isActualOwner = currentProject && currentUser && currentProject.user_id === currentUser.id;
+   let access = { 
+       hasAccess: isActualOwner, 
+       isOwner: isActualOwner, 
+       role: isActualOwner ? 'OWNER' : 'VIEW_ONLY' 
+   };
+   ```
+
+2. **Enhanced Permission Checks**:
+   - Delete: `const canDelete = (isOwner && (!userAccess || userAccess.role !== 'VIEW_ONLY')) || (userAccess && userAccess.role === 'FULL_ACCESS');`
+   - Create: `const canCreateWorkflows = (isOwner && (!access || access.role !== 'VIEW_ONLY')) || (access && access.role === 'FULL_ACCESS');`
+
+3. **Added Debug Logging**:
+   - Delete button: `console.log('Delete button check:', { isOwner, userAccess, canDelete, sheetName })`
+   - New Workflow: `console.log('New Workflow button check:', { isOwner, access, canCreateWorkflows })`
+
+**Files Modified**:
+- `index.html:3880` - Delete button permission fix
+- `index.html:5351-5356` - Fallback permission fix  
+- `index.html:5404` - New Workflow button permission fix
+- Added debug logging for permission verification
+
+**Expected Result**:
+- VIEW_ONLY: No delete buttons, no "New Workflow" button
+- EDIT_ACCESS: No delete buttons, no "New Workflow" button (can only edit existing content)
+- FULL_ACCESS: Can see delete buttons and "New Workflow" button
+- OWNER: Full access to all functionality
+
+**Testing**: Debug logs now show permission decisions in browser console for verification
+
 ## Problemy i rozwiązania dla przyszłych napraw
 
 ---

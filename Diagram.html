@@ -10083,8 +10083,37 @@ function drawSelectionDependenciesArrows(selectedProcess) {
         }
     }
 
-    function updateAddProcessButtonState() {
-        document.getElementById('add-process-button').disabled = selectedSheetViews.length !== 1;
+    async function updateAddProcessButtonState() {
+        const addButton = document.getElementById('add-process-button');
+        const shouldDisableForSheets = selectedSheetViews.length !== 1;
+        
+        // Check permissions for adding processes
+        let canAdd = true;
+        if (currentProjectId && window.currentUser) {
+            try {
+                const access = await window.FlowCraftErrorHandler.checkProjectAccess(currentProjectId);
+                const { data: projectData } = await supabaseClient
+                    .from('projects')
+                    .select('user_id')
+                    .eq('id', currentProjectId)
+                    .single();
+                
+                const isOwner = projectData && projectData.user_id === window.currentUser.id;
+                canAdd = isOwner || access.role === 'FULL_ACCESS' || access.role === 'EDIT_ACCESS';
+            } catch (accessError) {
+                console.warn('Could not verify permissions for add button:', accessError);
+                // Allow add for now if permission check fails
+            }
+        }
+        
+        addButton.disabled = shouldDisableForSheets || !canAdd;
+        
+        // Optionally hide the button completely for VIEW_ONLY users
+        if (!canAdd) {
+            addButton.style.display = 'none';
+        } else {
+            addButton.style.display = 'inline-block';
+        }
     }
 
 
@@ -11185,7 +11214,34 @@ function drawArrow(fromNode, toNode, color, arrowTypeClassesString, dependencyLi
         saveStateToLocalStorage();
     }
 
-    function openAddModal() {
+    async function openAddModal() {
+        // Check if user has add permissions
+        if (!currentProjectId) {
+            showNotification('No project selected', 'error');
+            return;
+        }
+
+        try {
+            const access = await window.FlowCraftErrorHandler.checkProjectAccess(currentProjectId);
+            // Get current project info to check ownership
+            const { data: projectData } = await supabaseClient
+                .from('projects')
+                .select('user_id')
+                .eq('id', currentProjectId)
+                .single();
+            
+            const isOwner = projectData && projectData.user_id === window.currentUser?.id;
+            const canAdd = isOwner || access.role === 'FULL_ACCESS' || access.role === 'EDIT_ACCESS';
+            
+            if (!canAdd) {
+                showNotification('You do not have permission to add processes in this project', 'error');
+                return;
+            }
+        } catch (accessError) {
+            console.warn('Could not verify permissions:', accessError);
+            // Allow add for now if permission check fails
+        }
+
         if (isSimulationModeActive) endSimulation();
         if (!currentSheetId) {
             showNotification("No sheet context available. Please access through project manager.", "warning");
@@ -11571,6 +11627,33 @@ function drawArrow(fromNode, toNode, color, arrowTypeClassesString, dependencyLi
 
 
     async function saveProcess() {
+        // Check if user has edit permissions
+        if (!currentProjectId) {
+            showNotification('No project selected', 'error');
+            return;
+        }
+
+        try {
+            const access = await window.FlowCraftErrorHandler.checkProjectAccess(currentProjectId);
+            // Get current project info to check ownership
+            const { data: projectData } = await supabaseClient
+                .from('projects')
+                .select('user_id')
+                .eq('id', currentProjectId)
+                .single();
+            
+            const isOwner = projectData && projectData.user_id === window.currentUser?.id;
+            const canEdit = isOwner || access.role === 'FULL_ACCESS' || access.role === 'EDIT_ACCESS';
+            
+            if (!canEdit) {
+                showNotification('You do not have permission to save/edit processes in this project', 'error');
+                return;
+            }
+        } catch (accessError) {
+            console.warn('Could not verify permissions:', accessError);
+            // Allow save for now if permission check fails
+        }
+
         const originalProcessIdForEdit = document.getElementById('process-edit-id').value;
         const originalSourceSheet = document.getElementById('process-edit-id').dataset.originalSheet;
         const isEditMode = !!originalProcessIdForEdit;
@@ -11691,6 +11774,33 @@ function drawArrow(fromNode, toNode, color, arrowTypeClassesString, dependencyLi
     }
 
     async function deleteCurrentProcess() {
+        // Check if user has delete permissions
+        if (!currentProjectId) {
+            showNotification('No project selected', 'error');
+            return;
+        }
+
+        try {
+            const access = await window.FlowCraftErrorHandler.checkProjectAccess(currentProjectId);
+            // Get current project info to check ownership
+            const { data: projectData } = await supabaseClient
+                .from('projects')
+                .select('user_id')
+                .eq('id', currentProjectId)
+                .single();
+            
+            const isOwner = projectData && projectData.user_id === window.currentUser?.id;
+            const canDelete = isOwner || access.role === 'FULL_ACCESS' || access.role === 'EDIT_ACCESS';
+            
+            if (!canDelete) {
+                showNotification('You do not have permission to delete processes in this project', 'error');
+                return;
+            }
+        } catch (accessError) {
+            console.warn('Could not verify permissions:', accessError);
+            // Allow delete for now if permission check fails
+        }
+
         const editId = document.getElementById('process-edit-id').value;
         const sourceSheet = document.getElementById('process-edit-id').dataset.originalSheet; 
         

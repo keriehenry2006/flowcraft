@@ -400,6 +400,41 @@
             background: var(--fc-dark-accent);
         }
 
+        /* Date Selector Styling */
+        .date-selector {
+            padding: 10px 16px;
+            background: var(--fc-dark-secondary);
+            border: 2px solid var(--fc-border);
+            color: var(--fc-text-primary);
+            font-size: 14px;
+            font-family: inherit;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-radius: 0; /* Brutalist */
+            transition: all 0.3s ease;
+            outline: none;
+            cursor: pointer;
+            min-width: 120px;
+        }
+
+        .date-selector:hover {
+            border-color: var(--fc-neon-primary);
+            background: var(--fc-dark-accent);
+        }
+
+        .date-selector:focus {
+            border-color: var(--fc-neon-primary);
+            box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.2);
+            background: var(--fc-dark-accent);
+        }
+
+        .date-selector option {
+            background: var(--fc-dark-secondary);
+            color: var(--fc-text-primary);
+            padding: 8px;
+        }
+
         .form-group input::placeholder {
             color: var(--fc-text-muted);
             font-style: italic;
@@ -2797,7 +2832,7 @@
                         <button class="btn-fc btn-fc-accent new-project-btn" id="new-process-btn">+ New Process</button>
                         <button class="btn-fc btn-fc-primary btn-fc-sm" id="open-diagram-btn">📊 Open Diagram</button>
                         <div style="display: flex; align-items: center; gap: 8px;">
-                            <select id="target-month-select" style="padding: 8px; background: var(--fc-dark-secondary); color: var(--fc-text-primary); border: 1px solid var(--fc-border);">
+                            <select id="target-month-select" class="date-selector">
                                 <option value="1">January</option>
                                 <option value="2">February</option>
                                 <option value="3">March</option>
@@ -2811,9 +2846,8 @@
                                 <option value="11">November</option>
                                 <option value="12">December</option>
                             </select>
-                            <select id="target-year-select" style="padding: 8px; background: var(--fc-dark-secondary); color: var(--fc-text-primary); border: 1px solid var(--fc-border);">
+                            <select id="target-year-select" class="date-selector">
                             </select>
-                            <button class="btn-fc btn-fc-warning btn-fc-sm" id="update-dates-btn">🗓️ Update Dates</button>
                         </div>
                     </div>
                 </div>
@@ -3304,7 +3338,7 @@
             });
             document.getElementById('open-diagram-btn').addEventListener('click', openDiagramFromProcesses);
             document.getElementById('manage-columns-btn').addEventListener('click', openColumnsModal);
-            document.getElementById('update-dates-btn').addEventListener('click', updateProcessDates);
+            // Removed update-dates-btn - auto-update on selector change
             document.getElementById('invite-member-btn').addEventListener('click', openInviteMemberModal);
 
             // Modals
@@ -3787,6 +3821,17 @@
             console.log('User role in project:', currentProject?.user_role);
             console.log('Is member:', currentProject?.is_member);
             
+            // Check user access to the project
+            let userAccess = null;
+            if (currentProject) {
+                try {
+                    userAccess = await window.FlowCraftErrorHandler.checkProjectAccess(currentProject.id);
+                } catch (accessError) {
+                    console.warn('Could not check project access:', accessError);
+                    // Continue without access info
+                }
+            }
+            
             // First test: Query ALL sheets without project filter to see RLS in action
             console.log('Testing RLS: Querying ALL sheets (should only return accessible ones)');
             const { data: allSheets, error: allError } = await supabaseClient
@@ -3837,12 +3882,12 @@
 
             sheets.forEach(sheet => {
                 console.log('Creating card for sheet:', sheet.name);
-                const card = createSheetCard(sheet);
+                const card = createSheetCard(sheet, userAccess);
                 grid.appendChild(card);
             });
         }
 
-        function createSheetCard(sheet) {
+        function createSheetCard(sheet, userAccess = null) {
             const card = document.createElement('div');
             card.className = 'sheet-card';
             
@@ -3864,21 +3909,27 @@
             
             stats.appendChild(statsSpan);
             
-            // Add delete button
-            const deleteBtn = document.createElement('button');
-            deleteBtn.className = 'btn-delete-sheet';
-            deleteBtn.innerHTML = '🗑️ Delete';
-            deleteBtn.title = 'Delete Sheet';
-            deleteBtn.style.cssText = 'position: absolute; top: 12px; right: 12px; z-index: 3;';
-            deleteBtn.onclick = (e) => {
-                e.stopPropagation(); // Prevent card click
-                deleteSheet(sheet.id, sheet.name);
-            };
+            // Add delete button only if user has permissions
+            const isOwner = currentProject && currentUser && currentProject.user_id === currentUser.id;
+            const canDelete = (isOwner && (!userAccess || userAccess.role !== 'VIEW_ONLY')) || (userAccess && userAccess.role === 'FULL_ACCESS');
+            console.log('Delete button check:', { isOwner, userAccess, canDelete, sheetName: sheet.name });
+            
+            if (canDelete) {
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'btn-delete-sheet';
+                deleteBtn.innerHTML = '🗑️ Delete';
+                deleteBtn.title = 'Delete Sheet';
+                deleteBtn.style.cssText = 'position: absolute; top: 12px; right: 12px; z-index: 3;';
+                deleteBtn.onclick = (e) => {
+                    e.stopPropagation(); // Prevent card click
+                    deleteSheet(sheet.id, sheet.name);
+                };
+                card.appendChild(deleteBtn);
+            }
             
             card.appendChild(title);
             card.appendChild(description);
             card.appendChild(stats);
-            card.appendChild(deleteBtn);
             
             card.addEventListener('click', () => openProcesses(sheet));
             return card;
@@ -3886,6 +3937,27 @@
 
         async function handleCreateSheet(e) {
             e.preventDefault();
+            
+            // Check if user has create permissions
+            if (!currentProject) {
+                showNotification('No project selected', 'error');
+                return;
+            }
+
+            try {
+                const access = await window.FlowCraftErrorHandler.checkProjectAccess(currentProject.id);
+                const isOwner = currentProject.user_id === currentUser.id;
+                const canCreate = isOwner || access.role === 'FULL_ACCESS';
+                
+                if (!canCreate) {
+                    showNotification('You do not have permission to create workflows in this project', 'error');
+                    return;
+                }
+            } catch (accessError) {
+                console.warn('Could not verify permissions:', accessError);
+                // Allow create for now if permission check fails
+            }
+            
             const name = document.getElementById('sheet-name').value;
             const description = document.getElementById('sheet-description').value;
             
@@ -3972,6 +4044,17 @@
         async function loadProcesses() {
             if (!currentSheet) return;
 
+            // Check user access to the project
+            let userAccess = null;
+            if (currentProject) {
+                try {
+                    userAccess = await window.FlowCraftErrorHandler.checkProjectAccess(currentProject.id);
+                } catch (accessError) {
+                    console.warn('Could not check project access:', accessError);
+                    // Continue without access info
+                }
+            }
+
             const { data: processes, error } = await supabaseClient
                 .from('processes')
                 .select('*')
@@ -3987,10 +4070,10 @@
 
             // Store processes globally for status management
             currentProcesses = processes || [];
-            renderProcessesTable(processes);
+            renderProcessesTable(processes, userAccess);
         }
 
-        function renderProcessesTable(processes) {
+        function renderProcessesTable(processes, userAccess = null) {
             const tbody = document.getElementById('processes-table-body');
             tbody.innerHTML = '';
 
@@ -4008,18 +4091,49 @@
             }
 
             processes.forEach(process => {
-                const row = createProcessRow(process, customFieldsArray);
+                const row = createProcessRow(process, customFieldsArray, userAccess);
                 tbody.appendChild(row);
             });
         }
 
-        function createProcessRow(process, customFields) {
+        function getActionButtons(processId, userAccess) {
+            if (!currentProject || !currentUser) {
+                return '';
+            }
+            
+            const isOwner = currentProject.user_id === currentUser.id;
+            const canEdit = isOwner || (userAccess && (userAccess.role === 'FULL_ACCESS' || userAccess.role === 'EDIT_ACCESS'));
+            const canChangeStatus = isOwner || (userAccess && userAccess.role !== 'VIEW_ONLY');
+            
+            let buttons = '';
+            
+            if (canChangeStatus) {
+                buttons += '<button class="btn-status" onclick="openProcessStatusModal(\'' + processId + '\')" title="Change Status">⚙️</button>';
+            }
+            
+            if (canEdit) {
+                buttons += '<button class="btn-edit" onclick="editProcess(\'' + processId + '\')" title="Edit Process">✏️</button>';
+                buttons += '<button class="btn-delete" onclick="deleteProcess(\'' + processId + '\')" title="Delete Process">🗑️</button>';
+            }
+            
+            return buttons;
+        }
+
+        function createProcessRow(process, customFields, userAccess = null) {
             const row = document.createElement('tr');
             
             const customData = process.custom_data || {};
-            const customFieldsHTML = customFields.map(field => 
-                `<td><input type="text" class="inline-edit" data-field="${field}" data-process-id="${process.id}" value="${customData[field] || ''}" onblur="updateProcessField(this)"></td>`
-            ).join('');
+            const isOwner = currentProject && currentUser && currentProject.user_id === currentUser.id;
+            const canEdit = isOwner || (userAccess && (userAccess.role === 'FULL_ACCESS' || userAccess.role === 'EDIT_ACCESS'));
+            
+            const customFieldsHTML = customFields.map(field => {
+                const value = customData[field] || '';
+                if (canEdit) {
+                    return `<td><input type="text" class="inline-edit" data-field="${field}" data-process-id="${process.id}" value="${value}" onblur="updateProcessField(this)"></td>`;
+                } else {
+                    return `<td><span class="readonly-field">${value}</span></td>`;
+                }
+            }).join('');
 
             // Calculate deadline based on working day and current month
             const currentDate = new Date();
@@ -4074,15 +4188,15 @@
             }[statusText] || 'status-pending';
 
             row.innerHTML = `
-                <td><input type="text" class="inline-edit" data-field="short_name" data-process-id="${process.id}" value="${process.short_name}" onblur="updateProcessField(this)"></td>
-                <td class="description-cell" data-full-description="${process.description || ''}" onclick="editDescription(${process.id}, '${(process.description || '').replace(/'/g, '\\\'').replace(/"/g, '&quot;')}', this)">${process.description || ''}</td>
-                <td><input type="number" class="inline-edit" data-field="working_day" data-process-id="${process.id}" value="${process.working_day}" onblur="updateProcessField(this)" title="Cannot be 0. Negative values indicate previous month."></td>
-                <td><input type="text" class="inline-edit" data-field="due_time" data-process-id="${process.id}" value="${process.due_time || ''}" onblur="updateProcessField(this)" placeholder="HH:MM"></td>
+                <td>${canEdit ? `<input type="text" class="inline-edit" data-field="short_name" data-process-id="${process.id}" value="${process.short_name}" onblur="updateProcessField(this)">` : `<span class="readonly-field">${process.short_name}</span>`}</td>
+                <td class="description-cell" data-full-description="${process.description || ''}" ${canEdit ? `onclick="editDescription(${process.id}, '${(process.description || '').replace(/'/g, '\\\'').replace(/"/g, '&quot;')}', this)"` : ''}>${process.description || ''}</td>
+                <td>${canEdit ? `<input type="number" class="inline-edit" data-field="working_day" data-process-id="${process.id}" value="${process.working_day}" onblur="updateProcessField(this)" title="Cannot be 0. Negative values indicate previous month.">` : `<span class="readonly-field">${process.working_day}</span>`}</td>
+                <td>${canEdit ? `<input type="text" class="inline-edit" data-field="due_time" data-process-id="${process.id}" value="${process.due_time || ''}" onblur="updateProcessField(this)" placeholder="HH:MM">` : `<span class="readonly-field">${process.due_time || ''}</span>`}</td>
                 <td class="dependencies-cell">
-                    <button class="dependencies-selector" onclick="openDependenciesModal(${process.id}, '${(process.dependencies || '').replace(/'/g, '\\\'').replace(/"/g, '&quot;')}')">${process.dependencies || 'Select dependencies...'}</button>
+                    ${canEdit ? `<button class="dependencies-selector" onclick="openDependenciesModal(${process.id}, '${(process.dependencies || '').replace(/'/g, '\\\'').replace(/"/g, '&quot;')}')">${process.dependencies || 'Select dependencies...'}</button>` : `<span class="readonly-field">${process.dependencies || 'None'}</span>`}
                 </td>
                 <td>
-                    <div class="process-type-display" data-process-id="${process.id}" data-type="${process.process_type}" onclick="toggleProcessType(this)">
+                    <div class="process-type-display" data-process-id="${process.id}" data-type="${process.process_type}" ${canEdit ? `onclick="toggleProcessType(this)"` : ''}>
                         <span class="type-abbreviation" title="${getProcessTypeFullName(process.process_type)}">${getProcessTypeAbbreviation(process.process_type)}</span>
                     </div>
                 </td>
@@ -4097,9 +4211,7 @@
                 ${customFieldsHTML}
                 <td>
                     <div class="process-actions">
-                        <button class="btn-status" onclick="openProcessStatusModal('${process.id}')" title="Change Status">⚙️</button>
-                        <button class="btn-edit" onclick="editProcess('${process.id}')" title="Edit Process">✏️</button>
-                        <button class="btn-delete" onclick="deleteProcess('${process.id}')" title="Delete Process">🗑️</button>
+                        ${getActionButtons(process.id, userAccess)}
                     </div>
                 </td>
             `;
@@ -4107,6 +4219,28 @@
         }
 
         async function updateProcessField(element) {
+            // Check if user has edit permissions
+            if (!currentProject) {
+                showNotification('No project selected', 'error');
+                return;
+            }
+
+            try {
+                const access = await window.FlowCraftErrorHandler.checkProjectAccess(currentProject.id);
+                const isOwner = currentProject.user_id === currentUser.id;
+                const canEdit = isOwner || access.role === 'FULL_ACCESS' || access.role === 'EDIT_ACCESS';
+                
+                if (!canEdit) {
+                    showNotification('You do not have permission to edit processes in this project', 'error');
+                    // Reset field to original value
+                    element.blur();
+                    return;
+                }
+            } catch (accessError) {
+                console.warn('Could not verify permissions:', accessError);
+                // Allow edit for now if permission check fails
+            }
+
             const processId = element.dataset.processId;
             const field = element.dataset.field;
             const value = element.value;
@@ -4291,7 +4425,26 @@
         }
 
         // Description tooltip and editing functions
-        function editDescription(processId, currentDescription, targetElement) {
+        async function editDescription(processId, currentDescription, targetElement) {
+            // Check if user has edit permissions
+            if (!currentProject) {
+                showNotification('No project selected', 'error');
+                return;
+            }
+
+            try {
+                const access = await window.FlowCraftErrorHandler.checkProjectAccess(currentProject.id);
+                const isOwner = currentProject.user_id === currentUser.id;
+                const canEdit = isOwner || access.role === 'FULL_ACCESS' || access.role === 'EDIT_ACCESS';
+                
+                if (!canEdit) {
+                    showNotification('You do not have permission to edit processes in this project', 'error');
+                    return;
+                }
+            } catch (accessError) {
+                console.warn('Could not verify permissions:', accessError);
+                // Allow edit for now if permission check fails
+            }
             if (!targetElement) {
                 console.error('editDescription: targetElement is required');
                 return;
@@ -4482,7 +4635,26 @@
             return fullNames[type] || 'Standard';
         }
         
-        function toggleProcessType(element) {
+        async function toggleProcessType(element) {
+            // Check if user has edit permissions
+            if (!currentProject) {
+                showNotification('No project selected', 'error');
+                return;
+            }
+
+            try {
+                const access = await window.FlowCraftErrorHandler.checkProjectAccess(currentProject.id);
+                const isOwner = currentProject.user_id === currentUser.id;
+                const canEdit = isOwner || access.role === 'FULL_ACCESS' || access.role === 'EDIT_ACCESS';
+                
+                if (!canEdit) {
+                    showNotification('You do not have permission to edit processes in this project', 'error');
+                    return;
+                }
+            } catch (accessError) {
+                console.warn('Could not verify permissions:', accessError);
+                // Allow edit for now if permission check fails
+            }
             const processId = element.dataset.processId;
             const currentType = element.dataset.type;
             
@@ -4525,6 +4697,25 @@
         let currentDependencies = [];
         
         async function openDependenciesModal(processId, currentDeps) {
+            // Check if user has edit permissions
+            if (!currentProject) {
+                showNotification('No project selected', 'error');
+                return;
+            }
+
+            try {
+                const access = await window.FlowCraftErrorHandler.checkProjectAccess(currentProject.id);
+                const isOwner = currentProject.user_id === currentUser.id;
+                const canEdit = isOwner || access.role === 'FULL_ACCESS' || access.role === 'EDIT_ACCESS';
+                
+                if (!canEdit) {
+                    showNotification('You do not have permission to edit processes in this project', 'error');
+                    return;
+                }
+            } catch (accessError) {
+                console.warn('Could not verify permissions:', accessError);
+                // Allow edit for now if permission check fails
+            }
             currentProcessId = processId;
             currentDependencies = currentDeps ? currentDeps.split(',').map(d => d.trim()).filter(d => d) : [];
             
@@ -4664,6 +4855,26 @@
         }
 
         async function editProcess(processId) {
+            // Check if user has edit permissions
+            if (!currentProject) {
+                showNotification('No project selected', 'error');
+                return;
+            }
+
+            try {
+                const access = await window.FlowCraftErrorHandler.checkProjectAccess(currentProject.id);
+                const isOwner = currentProject.user_id === currentUser.id;
+                const canEdit = isOwner || access.role === 'FULL_ACCESS' || access.role === 'EDIT_ACCESS';
+                
+                if (!canEdit) {
+                    showNotification('You do not have permission to edit processes in this project', 'error');
+                    return;
+                }
+            } catch (accessError) {
+                console.warn('Could not verify permissions:', accessError);
+                // Allow edit for now if permission check fails
+            }
+
             const { data: processData, error } = await supabaseClient
                 .from('processes')
                 .select('*')
@@ -4682,6 +4893,26 @@
         }
 
         async function deleteProcess(processId) {
+            // Check if user has delete permissions
+            if (!currentProject) {
+                showNotification('No project selected', 'error');
+                return;
+            }
+
+            try {
+                const access = await window.FlowCraftErrorHandler.checkProjectAccess(currentProject.id);
+                const isOwner = currentProject.user_id === currentUser.id;
+                const canDelete = isOwner || access.role === 'FULL_ACCESS' || access.role === 'EDIT_ACCESS';
+                
+                if (!canDelete) {
+                    showNotification('You do not have permission to delete processes in this project', 'error');
+                    return;
+                }
+            } catch (accessError) {
+                console.warn('Could not verify permissions:', accessError);
+                // Allow delete for now if permission check fails
+            }
+
             if (!confirm('Are you sure you want to delete this process?')) return;
 
             const { error } = await supabaseClient
@@ -5152,13 +5383,18 @@
             
             try {
                 // Check if user has access to manage members (with better error handling)
-                let access = { hasAccess: true, isOwner: true, role: 'OWNER' }; // Default to owner access
+                const isActualOwner = currentProject && currentUser && currentProject.user_id === currentUser.id;
+                let access = { 
+                    hasAccess: isActualOwner, 
+                    isOwner: isActualOwner, 
+                    role: isActualOwner ? 'OWNER' : 'VIEW_ONLY' 
+                }; // Default based on actual ownership
                 
                 try {
                     access = await window.FlowCraftErrorHandler.checkProjectAccess(currentProject.id);
                 } catch (accessError) {
-                    console.warn('Could not check project access, assuming owner access:', accessError);
-                    // Continue with default owner access
+                    console.warn('Could not check project access, falling back to ownership check:', accessError);
+                    // Continue with ownership-based default access
                 }
                 
                 // Hide Project Members section for shared projects (user is not owner)
@@ -5194,6 +5430,18 @@
                     inviteBtn.style.display = 'block';
                 } else {
                     inviteBtn.style.display = 'none';
+                }
+                
+                // Show/hide new workflow button based on permissions
+                const newSheetBtn = document.getElementById('new-sheet-btn');
+                if (newSheetBtn) {
+                    const canCreateWorkflows = (isOwner && (!access || access.role !== 'VIEW_ONLY')) || (access && access.role === 'FULL_ACCESS');
+                    console.log('New Workflow button check:', { isOwner, access, canCreateWorkflows });
+                    if (canCreateWorkflows) {
+                        newSheetBtn.style.display = 'inline-block';
+                    } else {
+                        newSheetBtn.style.display = 'none';
+                    }
                 }
                 
                 // Load members (with error handling for missing tables)
@@ -5591,7 +5839,27 @@
         // =====================================================
 
         // Open process status modal
-        function openProcessStatusModal(processId) {
+        async function openProcessStatusModal(processId) {
+            // Check if user has permission to change status
+            if (!currentProject) {
+                showNotification('No project selected', 'error');
+                return;
+            }
+
+            try {
+                const access = await window.FlowCraftErrorHandler.checkProjectAccess(currentProject.id);
+                const isOwner = currentProject.user_id === currentUser.id;
+                const canChangeStatus = isOwner || (access.role !== 'VIEW_ONLY');
+                
+                if (!canChangeStatus) {
+                    showNotification('You do not have permission to change status in this project', 'error');
+                    return;
+                }
+            } catch (accessError) {
+                console.warn('Could not verify permissions:', accessError);
+                // Allow status change for now if permission check fails
+            }
+
             // Find process data
             const processData = currentProcesses.find(p => p.id === processId);
             if (!processData) {
@@ -5837,6 +6105,26 @@
 
         // Delete sheet with confirmation
         async function deleteSheet(sheetId, sheetName) {
+            // Check if user has delete permissions
+            if (!currentProject) {
+                showNotification('No project selected', 'error');
+                return;
+            }
+
+            try {
+                const access = await window.FlowCraftErrorHandler.checkProjectAccess(currentProject.id);
+                const isOwner = currentProject.user_id === currentUser.id;
+                const canDelete = isOwner || access.role === 'FULL_ACCESS';
+                
+                if (!canDelete) {
+                    showNotification('You do not have permission to delete workflows in this project', 'error');
+                    return;
+                }
+            } catch (accessError) {
+                console.warn('Could not verify permissions:', accessError);
+                // Allow delete for now if permission check fails
+            }
+
             if (!confirm(`Are you sure you want to delete workflow "${sheetName}"?\n\nThis action cannot be undone and will delete all processes in this workflow.`)) {
                 return;
             }

@@ -320,3 +320,57 @@ FLOWCRAFT_FROM_NAME=FlowCraft ✅ CONFIGURED
 - 📊 Updated terminology from "Sheets" to "Workflows" for better UX
 - 🎯 Focus on testing and production deployment next
 - 🔧 **2025-07-12**: Naprawiono problemy z MCP i zdiagnozowano błędy akceptacji zaproszeń
+
+---
+
+## 🔒 CRITICAL BUG FIX - VIEW Permission Issue (2025-07-13)
+
+### ❌ Problem: 
+Users with "View" permissions can still see and click Delete button and "New Workflow" button, which violates the permission system.
+
+### 🔍 Root Cause Analysis:
+1. **Fallback Permission Issue** - In `loadProjectMembers()` function (index.html:5351), the default fallback assumed owner access for ALL users when permission check failed:
+   ```javascript
+   let access = { hasAccess: true, isOwner: true, role: 'OWNER' }; // DANGEROUS DEFAULT
+   ```
+
+2. **Permission Logic Gaps** - Delete button and "New Workflow" button checks didn't properly handle VIEW_ONLY role:
+   ```javascript
+   const canDelete = isOwner || (userAccess && userAccess.role === 'FULL_ACCESS');
+   const canCreateWorkflows = isOwner || access.role === 'FULL_ACCESS';
+   ```
+
+### ✅ Solutions Implemented:
+
+1. **Fixed Fallback Permissions** (index.html:5351-5356):
+   - Changed default access to be based on actual project ownership
+   - VIEW_ONLY users now get VIEW_ONLY default instead of OWNER
+   ```javascript
+   const isActualOwner = currentProject && currentUser && currentProject.user_id === currentUser.id;
+   let access = { 
+       hasAccess: isActualOwner, 
+       isOwner: isActualOwner, 
+       role: isActualOwner ? 'OWNER' : 'VIEW_ONLY' 
+   };
+   ```
+
+2. **Enhanced Permission Checks**:
+   - Delete button check (index.html:3880): Added explicit VIEW_ONLY exclusion
+   - New Workflow button check (index.html:5404): Added explicit VIEW_ONLY exclusion
+   - Added debug logging to track permission decisions
+
+3. **Added Debug Logging**:
+   - Delete button permissions: `console.log('Delete button check:', { isOwner, userAccess, canDelete, sheetName })`
+   - New Workflow permissions: `console.log('New Workflow button check:', { isOwner, access, canCreateWorkflows })`
+
+### 🎯 Expected Result:
+- VIEW_ONLY users should NOT see Delete buttons on workflows
+- VIEW_ONLY users should NOT see "New Workflow" button
+- Only FULL_ACCESS and project owners should have workflow creation/deletion rights
+- EDIT_ACCESS users should NOT be able to create/delete workflows (only edit existing content)
+
+### 📝 Files Modified:
+- `index.html` - Lines 3880, 5351-5356, 5404 (permission logic fixes)
+- Added debug logging for permission verification
+
+### 🧪 Next: Test with actual VIEW_ONLY user to verify fixes work correctly
