@@ -5230,6 +5230,30 @@ body.dark-mode .status-icon-pending {
                     Processes
                 </button>
             </div>
+            
+            <!-- Month/Year Execution Controls -->
+            <div class="execution-period-controls" style="display: flex; align-items: center; gap: 8px; margin-right: 16px; padding: 8px 12px; background: var(--fc-surface); border: 1px solid var(--fc-border); border-radius: 6px;">
+                <span style="font-size: 0.85em; font-weight: 600; color: var(--fc-text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Execution Period:</span>
+                <select id="execution-year-selector" title="Select year for process executions" style="padding: 4px 8px; border: 1px solid var(--fc-border); border-radius: 4px; background: var(--fc-dark-secondary); color: var(--fc-text-primary); font-size: 0.85em; min-width: 80px;">
+                    <!-- Years will be populated by JavaScript -->
+                </select>
+                <select id="execution-month-selector" title="Select month for process executions" style="padding: 4px 8px; border: 1px solid var(--fc-border); border-radius: 4px; background: var(--fc-dark-secondary); color: var(--fc-text-primary); font-size: 0.85em; min-width: 100px;">
+                    <option value="1">January</option>
+                    <option value="2">February</option>
+                    <option value="3">March</option>
+                    <option value="4">April</option>
+                    <option value="5">May</option>
+                    <option value="6">June</option>
+                    <option value="7">July</option>
+                    <option value="8">August</option>
+                    <option value="9">September</option>
+                    <option value="10">October</option>
+                    <option value="11">November</option>
+                    <option value="12">December</option>
+                </select>
+                <div id="current-period-indicator" style="background: var(--fc-neon-primary); color: var(--fc-dark-primary); padding: 2px 6px; border-radius: 3px; font-size: 0.7em; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">CURRENT</div>
+            </div>
+            
             <div class="menu-container">
                 <button id="menu-button" class="btn-fc btn-fc-danger btn-fc-md" title="Access application menu">
                     MENU
@@ -7643,9 +7667,9 @@ function updateTopBarHeight() {
 
     // MODYFIKACJA START: Zaktualizowana funkcja createNodeElement
     // MODYFIKACJA START: Zaktualizowana funkcja createNodeElement
-    // Add process status visualization
+    // Add process status visualization - updated for execution_status
     function addProcessStatusVisualization(node, processData) {
-        const status = processData.status || 'PENDING';
+        const status = processData.execution_status || processData.status || 'PENDING';
         
         // Remove existing status elements
         const existingStatusElements = node.querySelectorAll('.status-indicator, .status-icon');
@@ -7699,15 +7723,17 @@ function updateTopBarHeight() {
         }
         
         // Add completion note tooltip if available
-        if (processData.completion_note) {
-            statusIcon.title = `Status: ${status.replace('_', ' ')}\nNote: ${processData.completion_note}`;
+        const completionNote = processData.execution_completion_note || processData.completion_note;
+        if (completionNote) {
+            statusIcon.title = `Execution Status: ${status.replace(/_/g, ' ')}\nNote: ${completionNote}`;
         } else {
-            statusIcon.title = `Status: ${status.replace('_', ' ')}`;
+            statusIcon.title = `Execution Status: ${status.replace(/_/g, ' ')}`;
         }
         
         // Add assigned user info if available
-        if (processData.assigned_to_email) {
-            statusIcon.title += `\nAssigned to: ${processData.assigned_to_email}`;
+        const assignedTo = processData.execution_completed_by || processData.assigned_to_email;
+        if (assignedTo) {
+            statusIcon.title += `\nCompleted by: ${assignedTo}`;
         }
         
         // Add due date info if available
@@ -7784,10 +7810,189 @@ function updateTopBarHeight() {
         // Add status visualization
         addProcessStatusVisualization(node, processData);
         
+        // Add click handler for execution status management
+        node.addEventListener('click', function(event) {
+            if (event.ctrlKey || event.metaKey) {
+                // Ctrl+Click opens execution status menu
+                event.preventDefault();
+                event.stopPropagation();
+                openExecutionStatusMenu(processData, node, event);
+            }
+        });
+        
         return node;
     }
     // MODYFIKACJA KONIEC
     // MODYFIKACJA KONIEC
+    
+    // Execution Status Management Menu
+    function openExecutionStatusMenu(processData, nodeElement, event) {
+        const currentStatus = processData.execution_status || processData.status || 'PENDING';
+        
+        // Remove existing menu if present
+        const existingMenu = document.getElementById('execution-status-menu');
+        if (existingMenu) {
+            existingMenu.remove();
+        }
+        
+        // Create menu container
+        const menu = document.createElement('div');
+        menu.id = 'execution-status-menu';
+        menu.style.cssText = `
+            position: fixed;
+            background: var(--fc-dark-secondary);
+            border: 2px solid var(--fc-border);
+            border-radius: 6px;
+            box-shadow: var(--flowcraft-shadow-lg);
+            z-index: 10000;
+            min-width: 250px;
+            max-width: 350px;
+        `;
+        
+        // Position menu near click
+        menu.style.left = `${event.clientX + 10}px`;
+        menu.style.top = `${event.clientY - 10}px`;
+        
+        // Menu header
+        const header = document.createElement('div');
+        header.style.cssText = `
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--fc-border);
+            color: var(--fc-text-primary);
+            font-weight: 600;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        `;
+        header.innerHTML = `
+            <div>Update Execution Status</div>
+            <div style="font-size: 0.8em; font-weight: 400; color: var(--fc-text-secondary); margin-top: 4px;">
+                ${processData["Short name"]} - ${getMonthName(currentExecutionMonth)} ${currentExecutionYear}
+            </div>
+        `;
+        menu.appendChild(header);
+        
+        // Status options
+        const statusOptions = [
+            { value: 'PENDING', label: 'Pending', icon: '○', color: 'var(--fc-text-muted)' },
+            { value: 'COMPLETED_ON_TIME', label: 'Completed On Time', icon: '✓', color: 'var(--fc-neon-success)' },
+            { value: 'COMPLETED_LATE', label: 'Completed Late', icon: '✓', color: 'var(--fc-neon-warning)' },
+            { value: 'OVERDUE', label: 'Overdue', icon: '⚠', color: 'var(--fc-neon-secondary)' },
+            { value: 'DELAYED_WITH_REASON', label: 'Delayed with Reason', icon: '⏱', color: 'var(--fc-neon-warning)' }
+        ];
+        
+        statusOptions.forEach(option => {
+            const optionEl = document.createElement('div');
+            optionEl.style.cssText = `
+                padding: 12px 16px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                transition: all 0.3s ease;
+                border-left: ${option.value === currentStatus ? '4px solid var(--fc-neon-primary)' : '4px solid transparent'};
+                background: ${option.value === currentStatus ? 'var(--fc-surface-light)' : 'transparent'};
+            `;
+            
+            optionEl.innerHTML = `
+                <span style="width: 16px; text-align: center; color: ${option.color};">${option.icon}</span>
+                <span style="color: var(--fc-text-primary); font-size: 0.9em;">${option.label}</span>
+                ${option.value === currentStatus ? '<span style="margin-left: auto; color: var(--fc-neon-primary); font-size: 0.8em;">CURRENT</span>' : ''}
+            `;
+            
+            optionEl.addEventListener('mouseenter', () => {
+                if (option.value !== currentStatus) {
+                    optionEl.style.background = 'var(--fc-surface-light)';
+                }
+            });
+            
+            optionEl.addEventListener('mouseleave', () => {
+                if (option.value !== currentStatus) {
+                    optionEl.style.background = 'transparent';
+                }
+            });
+            
+            optionEl.addEventListener('click', async () => {
+                await updateProcessExecutionStatus(processData, option.value, nodeElement);
+                menu.remove();
+            });
+            
+            menu.appendChild(optionEl);
+        });
+        
+        // Close button
+        const closeBtn = document.createElement('div');
+        closeBtn.style.cssText = `
+            padding: 8px 16px;
+            border-top: 1px solid var(--fc-border);
+            text-align: center;
+            cursor: pointer;
+            color: var(--fc-text-secondary);
+            font-size: 0.8em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        `;
+        closeBtn.textContent = 'Close';
+        closeBtn.addEventListener('click', () => menu.remove());
+        menu.appendChild(closeBtn);
+        
+        // Add to document
+        document.body.appendChild(menu);
+        
+        // Close on outside click
+        setTimeout(() => {
+            document.addEventListener('click', function closeMenu(e) {
+                if (!menu.contains(e.target)) {
+                    menu.remove();
+                    document.removeEventListener('click', closeMenu);
+                }
+            });
+        }, 100);
+        
+        // Adjust position if menu goes off screen
+        const rect = menu.getBoundingClientRect();
+        if (rect.right > window.innerWidth) {
+            menu.style.left = `${event.clientX - rect.width - 10}px`;
+        }
+        if (rect.bottom > window.innerHeight) {
+            menu.style.top = `${event.clientY - rect.height + 10}px`;
+        }
+    }
+    
+    // Update process execution status
+    async function updateProcessExecutionStatus(processData, newStatus, nodeElement) {
+        try {
+            showNotification(`Updating execution status to ${newStatus.replace(/_/g, ' ')}...`, 'info');
+            
+            const result = await window.flowcraftErrorHandler.updateProcessExecutionStatus(
+                processData._databaseId || processData.ID,
+                currentExecutionYear,
+                currentExecutionMonth,
+                newStatus,
+                '', // note - could be expanded to include user input
+                null // completed_by - could be set to current user
+            );
+            
+            if (!result.success) {
+                showNotification(`Error updating execution status: ${result.error?.message || 'Unknown error'}`, 'error');
+                return;
+            }
+            
+            // Update local data
+            processData.execution_status = newStatus;
+            processData.status = newStatus; // Keep compatibility
+            
+            // Update visual status
+            addProcessStatusVisualization(nodeElement, processData);
+            
+            showNotification(`Execution status updated to ${newStatus.replace(/_/g, ' ')}.`, 'success');
+            
+        } catch (error) {
+            console.error('Error updating execution status:', error);
+            showNotification('Error updating execution status.', 'error');
+        }
+    }
+    
     function drawMiniMap() {
         if (miniMapWrapper.style.display === 'none') {
             miniMapSvg.innerHTML = '';
@@ -8696,7 +8901,11 @@ function fullReset() {
         }
     }
 
-// Supabase Functions - replacing localStorage functionality
+// Current execution period tracking
+let currentExecutionYear = new Date().getFullYear();
+let currentExecutionMonth = new Date().getMonth() + 1;
+
+// Supabase Functions - updated to use process_executions system
 async function loadDataFromSupabase() {
     try {
         if (!currentSheetId) {
@@ -8704,30 +8913,40 @@ async function loadDataFromSupabase() {
             return false;
         }
 
-        showNotification("Loading data from database...", 'info');
+        // Get current selected period
+        const yearSelector = document.getElementById('execution-year-selector');
+        const monthSelector = document.getElementById('execution-month-selector');
         
-        const { data, error } = await supabaseClient
-            .from('processes')
-            .select('*')
-            .eq('sheet_id', currentSheetId)
-            .order('working_day', { ascending: true });
-        
-        // Debug available if needed: console.log('Raw data from Supabase:', data);
+        if (yearSelector && monthSelector) {
+            currentExecutionYear = parseInt(yearSelector.value) || currentExecutionYear;
+            currentExecutionMonth = parseInt(monthSelector.value) || currentExecutionMonth;
+        }
 
-        if (error) {
-            console.error('Supabase error:', error);
-            showNotification("Error loading data from database: " + error.message, 'error');
+        showNotification(`Loading process executions for ${getMonthName(currentExecutionMonth)} ${currentExecutionYear}...`, 'info');
+        
+        // Use the new process_executions API through error handler
+        const result = await window.flowcraftErrorHandler.getProcessExecutionsForMonth(
+            currentSheetId, 
+            currentExecutionYear, 
+            currentExecutionMonth
+        );
+        
+        if (!result.success || !result.data) {
+            console.error('Process executions error:', result.error);
+            showNotification("Error loading process executions: " + (result.error?.message || 'Unknown error'), 'error');
             return false;
         }
 
-        // Convert Supabase data to the application's format
+        const data = result.data;
+
+        // Convert process executions data to the application's format
         const newProcessesData = {};
         const sheetName = currentSheetData ? currentSheetData.name : 'Current Sheet';
         
         newProcessesData[sheetName] = [];
 
         data.forEach(row => {
-            // Convert database row to application format
+            // Convert process execution row to application format
             const process = {
                 ID: row.short_name, // Using short_name as ID for compatibility
                 "Short name": row.short_name,
@@ -8738,14 +8957,20 @@ async function loadDataFromSupabase() {
                 Dependencies: row.dependencies || '',
                 "Process Type": row.process_type || 'standard',
                 "Process type": row.process_type || 'standard', // Alternative field name
-                _databaseId: row.id, // Store database ID for updates
+                _databaseId: row.process_id, // Store process ID for updates
+                _executionId: row.execution_id, // Store execution ID for status updates
                 _customData: row.custom_data || {}, // Store custom fields data
-                // Add status-related fields for proper synchronization
-                status: row.status || 'PENDING',
-                completed_at: row.completed_at,
-                completion_note: row.completion_note,
-                assigned_to: row.assigned_to,
-                due_date: row.due_date
+                
+                // Use execution_status instead of status for monthly execution tracking
+                execution_status: row.execution_status || 'PENDING',
+                status: row.execution_status || 'PENDING', // Keep compatibility with existing code
+                execution_completed_at: row.execution_completed_at,
+                execution_completion_note: row.execution_completion_note,
+                execution_completed_by: row.execution_completed_by,
+                
+                // Add execution period info
+                execution_year: row.execution_year || currentExecutionYear,
+                execution_month: row.execution_month || currentExecutionMonth
             };
 
             // Add custom fields to process object
@@ -8765,9 +8990,10 @@ async function loadDataFromSupabase() {
         
         // Log successful data loading
         const processCount = Object.values(processesData).flat().length;
-        console.log(`✅ Loaded ${processCount} processes from database`);
+        console.log(`✅ Loaded ${processCount} process executions for ${getMonthName(currentExecutionMonth)} ${currentExecutionYear}`);
 
         // Update UI
+        updateCurrentPeriodIndicator();
         updateSheetMultiSelectDropdown();
         updateAddProcessButtonState();
         updateGlobalUniqueDueTimeHours();
@@ -8788,13 +9014,42 @@ async function loadDataFromSupabase() {
             welcomeMessageOverlay.style.display = 'none';
         }
 
-        showNotification(`Successfully loaded ${data.length} processes from database.`, 'success');
+        showNotification(`Successfully loaded ${data.length} process executions for ${getMonthName(currentExecutionMonth)} ${currentExecutionYear}.`, 'success');
         return true;
 
     } catch (error) {
-        console.error('Error loading from Supabase:', error);
-        showNotification("Error loading data from database.", 'error');
+        console.error('Error loading process executions:', error);
+        showNotification("Error loading process executions from database.", 'error');
         return false;
+    }
+}
+
+// Helper function to get month name
+function getMonthName(monthNumber) {
+    const months = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return months[monthNumber - 1] || 'Unknown';
+}
+
+// Update current period indicator
+function updateCurrentPeriodIndicator() {
+    const indicator = document.getElementById('current-period-indicator');
+    const currentDate = new Date();
+    const isCurrentMonth = currentExecutionYear === currentDate.getFullYear() && 
+                          currentExecutionMonth === (currentDate.getMonth() + 1);
+    
+    if (indicator) {
+        if (isCurrentMonth) {
+            indicator.textContent = 'CURRENT';
+            indicator.style.background = 'var(--fc-neon-primary)';
+            indicator.style.color = 'var(--fc-dark-primary)';
+        } else {
+            indicator.textContent = 'HISTORICAL';
+            indicator.style.background = 'var(--fc-text-muted)';
+            indicator.style.color = 'var(--fc-text-primary)';
+        }
     }
 }
 
@@ -13728,6 +13983,9 @@ async function initializeApplication() {
     // Load UI state from localStorage
     loadStateFromLocalStorage();
     
+    // Initialize execution period controls
+    initializeExecutionPeriodControls();
+    
     // Initialize with sheet context
     await initializeApp();
     
@@ -13735,6 +13993,59 @@ async function initializeApplication() {
     initSimulationPanelUI();
     populateViewConfigSelector();
     populateSimulationScenarioSelector();
+}
+
+// Initialize execution period controls
+function initializeExecutionPeriodControls() {
+    const currentDate = new Date();
+    const yearSelector = document.getElementById('execution-year-selector');
+    const monthSelector = document.getElementById('execution-month-selector');
+    
+    if (!yearSelector || !monthSelector) return;
+    
+    // Populate year selector (current year ± 2 years)
+    const currentYear = currentDate.getFullYear();
+    yearSelector.innerHTML = '';
+    for (let year = currentYear - 2; year <= currentYear + 2; year++) {
+        const option = document.createElement('option');
+        option.value = year;
+        option.textContent = year;
+        if (year === currentYear) option.selected = true;
+        yearSelector.appendChild(option);
+    }
+    
+    // Set current month as selected
+    monthSelector.value = currentDate.getMonth() + 1;
+    
+    // Update current execution period variables
+    currentExecutionYear = currentYear;
+    currentExecutionMonth = currentDate.getMonth() + 1;
+    
+    // Add event listeners for period changes
+    yearSelector.addEventListener('change', async () => {
+        currentExecutionYear = parseInt(yearSelector.value);
+        updateCurrentPeriodIndicator();
+        
+        if (currentSheetId) {
+            showNotification('Loading data for new period...', 'info');
+            await loadDataFromSupabase();
+        }
+    });
+    
+    monthSelector.addEventListener('change', async () => {
+        currentExecutionMonth = parseInt(monthSelector.value);
+        updateCurrentPeriodIndicator();
+        
+        if (currentSheetId) {
+            showNotification('Loading data for new period...', 'info');
+            await loadDataFromSupabase();
+        }
+    });
+    
+    // Initialize period indicator
+    updateCurrentPeriodIndicator();
+    
+    console.log(`✅ Execution period controls initialized: ${getMonthName(currentExecutionMonth)} ${currentExecutionYear}`);
 }
 
     // Missing function for simulation scenarios

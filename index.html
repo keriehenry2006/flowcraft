@@ -2832,6 +2832,7 @@
                         <button class="btn-fc btn-fc-accent new-project-btn" id="new-process-btn">+ New Process</button>
                         <button class="btn-fc btn-fc-primary btn-fc-sm" id="open-diagram-btn">📊 Open Diagram</button>
                         <div style="display: flex; align-items: center; gap: 8px;">
+                            <label for="target-month-select" style="color: var(--fc-text-secondary); font-size: 12px;">Month:</label>
                             <select id="target-month-select" class="date-selector">
                                 <option value="1">January</option>
                                 <option value="2">February</option>
@@ -2846,8 +2847,11 @@
                                 <option value="11">November</option>
                                 <option value="12">December</option>
                             </select>
+                            <label for="target-year-select" style="color: var(--fc-text-secondary); font-size: 12px;">Year:</label>
                             <select id="target-year-select" class="date-selector">
                             </select>
+                            <span id="month-year-indicator" style="margin-left: 8px; font-size: 11px; padding: 2px 6px; border-radius: 3px; background: var(--fc-surface); color: var(--fc-text-muted);">Current</span>
+                            <button class="btn-fc btn-fc-secondary btn-fc-sm" onclick="updateProcessDates()" title="Calculate deadline dates for Working Days">🔄 Update Dates</button>
                         </div>
                     </div>
                 </div>
@@ -4055,22 +4059,40 @@
                 }
             }
 
-            const { data: processes, error } = await supabaseClient
-                .from('processes')
-                .select('*')
-                .eq('sheet_id', currentSheet.id)
-                .order('working_day', { ascending: true })
-                .order('due_time', { ascending: true });
+            // Get current selected month and year
+            const selectedMonth = getCurrentSelectedMonth();
+            const selectedYear = getCurrentSelectedYear();
 
-            if (error) {
-                showNotification('Error loading processes', 'error');
+            try {
+                // Load project members for assignment functionality
+                await loadProjectMembersForAssignment();
+                
+                // Use the new process executions API
+                const result = await window.FlowCraftErrorHandler.getProcessExecutionsForMonth(
+                    currentSheet.id, 
+                    selectedYear, 
+                    selectedMonth
+                );
+
+                if (result.error) {
+                    showNotification('Error loading process executions', 'error');
+                    console.error('Error:', result.error);
+                    return;
+                }
+
+                const processExecutions = result.data || [];
+                
+                // Store process executions globally for status management
+                currentProcesses = processExecutions;
+                renderProcessesTable(processExecutions, userAccess);
+                
+                // Update month/year display
+                updateCurrentMonthYearDisplay();
+                
+            } catch (error) {
+                showNotification('Error loading process executions', 'error');
                 console.error('Error:', error);
-                return;
             }
-
-            // Store processes globally for status management
-            currentProcesses = processes || [];
-            renderProcessesTable(processes, userAccess);
         }
 
         function renderProcessesTable(processes, userAccess = null) {
@@ -4096,6 +4118,42 @@
             });
         }
 
+        // Global variable to cache project members
+        let projectMembersCache = [];
+
+        // Get project members options for assigned_to select
+        function getProjectMembersOptions(selectedEmail = '') {
+            if (!projectMembersCache || projectMembersCache.length === 0) {
+                return '<!-- Loading members... -->';
+            }
+            
+            return projectMembersCache.map(member => {
+                const selected = member.email === selectedEmail ? 'selected' : '';
+                return `<option value="${member.email}" ${selected}>${member.email}</option>`;
+            }).join('');
+        }
+
+        // Load project members for assigned_to functionality
+        async function loadProjectMembersForAssignment() {
+            if (!currentProject) return;
+            
+            try {
+                // Get project owner
+                const ownerEmail = currentUser?.email;
+                projectMembersCache = ownerEmail ? [{ email: ownerEmail, role: 'OWNER' }] : [];
+                
+                // Get project members
+                const membersResult = await window.FlowCraftErrorHandler.getProjectMembers(currentProject.id);
+                if (membersResult?.data) {
+                    // Add members to cache (need to get their emails - this might need a separate call)
+                    // For now, just add placeholder members
+                    console.log('Project members for assignment:', membersResult.data);
+                }
+            } catch (error) {
+                console.warn('Could not load project members for assignment:', error);
+            }
+        }
+
         function getActionButtons(processId, userAccess) {
             if (!currentProject || !currentUser) {
                 return '';
@@ -4119,8 +4177,25 @@
             return buttons;
         }
 
-        function createProcessRow(process, customFields, userAccess = null) {
+        function createProcessRow(processExecution, customFields, userAccess = null) {
             const row = document.createElement('tr');
+            
+            // Process executions have both process data and execution data
+            // Handle both old format (process) and new format (process_execution)
+            // Map new column names with process_ prefix to expected format
+            const process = processExecution.process_data || {
+                id: processExecution.process_id || processExecution.id,
+                short_name: processExecution.process_short_name || processExecution.short_name,
+                description: processExecution.process_description || processExecution.description,
+                working_day: processExecution.process_working_day || processExecution.working_day,
+                due_time: processExecution.process_due_time || processExecution.due_time,
+                dependencies: processExecution.dependencies,
+                process_type: processExecution.process_type,
+                custom_data: processExecution.custom_data,
+                assigned_to_email: processExecution.assigned_to_email,
+                due_date: processExecution.due_date
+            };
+            const execution = processExecution.execution_status ? processExecution : process; // Execution data
             
             const customData = process.custom_data || {};
             const isOwner = currentProject && currentUser && currentProject.user_id === currentUser.id;
@@ -4128,49 +4203,34 @@
             
             const customFieldsHTML = customFields.map(field => {
                 const value = customData[field] || '';
+                const processId = process.id;
                 if (canEdit) {
-                    return `<td><input type="text" class="inline-edit" data-field="${field}" data-process-id="${process.id}" value="${value}" onblur="updateProcessField(this)"></td>`;
+                    return `<td><input type="text" class="inline-edit" data-field="${field}" data-process-id="${processId}" value="${value}" onblur="updateProcessField(this)"></td>`;
                 } else {
                     return `<td><span class="readonly-field">${value}</span></td>`;
                 }
             }).join('');
 
-            // Calculate deadline based on working day and current month
-            const currentDate = new Date();
-            const currentMonth = currentDate.getMonth() + 1; // JavaScript months are 0-indexed, convert to 1-indexed
-            const currentYear = currentDate.getFullYear();
+            // Use calculated deadline from process executions data if available
             let deadline = 'Not set';
-            
-            if (process.working_day && process.due_time) {
-                // Use proper working day calculation if available, otherwise fallback to simplified version
+            if (processExecution.execution_deadline_date && processExecution.execution_deadline_time) {
+                const dueDateTime = new Date(processExecution.execution_deadline_date);
+                deadline = dueDateTime.toLocaleDateString('pl-PL') + ' ' + processExecution.execution_deadline_time;
+            } else if (process.working_day && process.due_time) {
+                // Fallback to process data calculation
                 if (process.due_date) {
-                    // Use the calculated due_date from backend if available
                     const dueDateTime = new Date(process.due_date);
                     const timeParts = process.due_time.split(':');
                     dueDateTime.setHours(parseInt(timeParts[0]), parseInt(timeParts[1]));
                     deadline = dueDateTime.toLocaleDateString('pl-PL') + ' ' + process.due_time;
                 } else {
-                    // Fallback calculation for display purposes (not accurate for Wd calculations)
-                    const workingDay = parseInt(process.working_day);
-                    let targetMonth = currentMonth;
-                    let targetYear = currentYear;
-                    
-                    if (workingDay < 0) {
-                        targetMonth = currentMonth - 1;
-                        if (targetMonth <= 0) {
-                            targetMonth = 12;
-                            targetYear--;
-                        }
-                    }
-                    
-                    // This is a simplified calculation - real working days should be calculated server-side
-                    const approximateDate = new Date(targetYear, targetMonth - 1, Math.abs(workingDay) * 2); // Rough approximation
-                    deadline = approximateDate.toLocaleDateString('pl-PL') + ' ' + process.due_time + ' (approx)';
+                    // If no due_date calculated yet, show working day info but suggest recalculation
+                    deadline = `Wd${process.working_day} ${process.due_time} (click Update Dates)`;
                 }
             }
             
-            // Format status with icon
-            const statusText = process.status || 'PENDING';
+            // Format status with icon - use execution status if available, otherwise process status
+            const statusText = execution.execution_status || execution.status || 'PENDING';
             const statusIcon = {
                 'PENDING': '○',
                 'COMPLETED_ON_TIME': '✓',
@@ -4187,16 +4247,20 @@
                 'DELAYED_WITH_REASON': 'status-delayed'
             }[statusText] || 'status-pending';
 
+            // Get the correct process ID for action buttons and fields
+            // Support both old format (process.id) and new format (process.process_id)
+            const processId = process.process_id || process.id;
+            
             row.innerHTML = `
-                <td>${canEdit ? `<input type="text" class="inline-edit" data-field="short_name" data-process-id="${process.id}" value="${process.short_name}" onblur="updateProcessField(this)">` : `<span class="readonly-field">${process.short_name}</span>`}</td>
-                <td class="description-cell" data-full-description="${process.description || ''}" ${canEdit ? `onclick="editDescription(${process.id}, '${(process.description || '').replace(/'/g, '\\\'').replace(/"/g, '&quot;')}', this)"` : ''}>${process.description || ''}</td>
-                <td>${canEdit ? `<input type="number" class="inline-edit" data-field="working_day" data-process-id="${process.id}" value="${process.working_day}" onblur="updateProcessField(this)" title="Cannot be 0. Negative values indicate previous month.">` : `<span class="readonly-field">${process.working_day}</span>`}</td>
-                <td>${canEdit ? `<input type="text" class="inline-edit" data-field="due_time" data-process-id="${process.id}" value="${process.due_time || ''}" onblur="updateProcessField(this)" placeholder="HH:MM">` : `<span class="readonly-field">${process.due_time || ''}</span>`}</td>
+                <td>${canEdit ? `<input type="text" class="inline-edit" data-field="short_name" data-process-id="${processId}" value="${process.short_name}" onblur="updateProcessField(this)">` : `<span class="readonly-field">${process.short_name}</span>`}</td>
+                <td class="description-cell" data-full-description="${process.description || ''}" ${canEdit ? `onclick="editDescription(${processId}, '${(process.description || '').replace(/'/g, '\\\'').replace(/"/g, '&quot;')}', this)"` : ''}>${process.description || ''}</td>
+                <td>${canEdit ? `<input type="number" class="inline-edit" data-field="working_day" data-process-id="${processId}" value="${process.working_day}" onblur="updateProcessField(this)" title="Cannot be 0. Negative values indicate previous month.">` : `<span class="readonly-field">${process.working_day}</span>`}</td>
+                <td>${canEdit ? `<input type="text" class="inline-edit" data-field="due_time" data-process-id="${processId}" value="${process.due_time || ''}" onblur="updateProcessField(this)" placeholder="HH:MM">` : `<span class="readonly-field">${process.due_time || ''}</span>`}</td>
                 <td class="dependencies-cell">
-                    ${canEdit ? `<button class="dependencies-selector" onclick="openDependenciesModal(${process.id}, '${(process.dependencies || '').replace(/'/g, '\\\'').replace(/"/g, '&quot;')}')">${process.dependencies || 'Select dependencies...'}</button>` : `<span class="readonly-field">${process.dependencies || 'None'}</span>`}
+                    ${canEdit ? `<button class="dependencies-selector" onclick="openDependenciesModal(${processId}, '${(process.dependencies || '').replace(/'/g, '\\\'').replace(/"/g, '&quot;')}')">${process.dependencies || 'Select dependencies...'}</button>` : `<span class="readonly-field">${process.dependencies || 'None'}</span>`}
                 </td>
                 <td>
-                    <div class="process-type-display" data-process-id="${process.id}" data-type="${process.process_type}" ${canEdit ? `onclick="toggleProcessType(this)"` : ''}>
+                    <div class="process-type-display" data-process-id="${processId}" data-type="${process.process_type}" ${canEdit ? `onclick="toggleProcessType(this)"` : ''}>
                         <span class="type-abbreviation" title="${getProcessTypeFullName(process.process_type)}">${getProcessTypeAbbreviation(process.process_type)}</span>
                     </div>
                 </td>
@@ -4207,11 +4271,20 @@
                     </div>
                 </td>
                 <td class="deadline-cell">${deadline}</td>
-                <td class="assigned-to-cell">${process.assigned_to_email || 'Not assigned'}</td>
+                <td class="assigned-to-cell">
+                    ${canEdit ? 
+                        `<select class="inline-edit assigned-to-select" data-field="assigned_to" data-process-id="${processId}" onchange="updateProcessField(this)">
+                            <option value="">Not assigned</option>
+                            ${getProjectMembersOptions(process.assigned_to_email)}
+                        </select>` 
+                        : 
+                        `<span class="readonly-field">${process.assigned_to_email || 'Not assigned'}</span>`
+                    }
+                </td>
                 ${customFieldsHTML}
                 <td>
                     <div class="process-actions">
-                        ${getActionButtons(process.id, userAccess)}
+                        ${getActionButtons(processId, userAccess)}
                     </div>
                 </td>
             `;
@@ -5669,16 +5742,37 @@
             // Set current month
             document.getElementById('target-month-select').value = currentMonth;
             
-            // Add event listeners for automatic updates
-            document.getElementById('target-month-select').addEventListener('change', autoUpdateDatesOnChange);
-            document.getElementById('target-year-select').addEventListener('change', autoUpdateDatesOnChange);
+            // Add event listeners for automatic updates and process loading
+            document.getElementById('target-month-select').addEventListener('change', onMonthYearChange);
+            document.getElementById('target-year-select').addEventListener('change', onMonthYearChange);
         }
 
-        // Auto-update dates when month/year changes
-        async function autoUpdateDatesOnChange() {
+        // Handle month/year changes - reload processes and update dates
+        async function onMonthYearChange() {
             if (currentSheet) {
+                // Update month/year display indicator
+                updateCurrentMonthYearDisplay();
+                
+                // Update process dates for the selected month/year
                 await updateProcessDates();
+                
+                // Reload processes for the selected month
+                await loadProcesses();
+                
+                // Also update dates if needed (for current month only)
+                const currentDate = new Date();
+                const selectedMonth = getCurrentSelectedMonth();
+                const selectedYear = getCurrentSelectedYear();
+                
+                if (selectedMonth === currentDate.getMonth() + 1 && selectedYear === currentDate.getFullYear()) {
+                    await updateProcessDates();
+                }
             }
+        }
+        
+        // Legacy function for backwards compatibility
+        async function autoUpdateDatesOnChange() {
+            await onMonthYearChange();
         }
 
         // Update process due dates
@@ -5718,6 +5812,70 @@
             const months = ['', 'January', 'February', 'March', 'April', 'May', 'June',
                            'July', 'August', 'September', 'October', 'November', 'December'];
             return months[monthNumber];
+        }
+
+        // Helper function to get currently selected month
+        function getCurrentSelectedMonth() {
+            const monthSelect = document.getElementById('target-month-select');
+            return monthSelect ? parseInt(monthSelect.value) : new Date().getMonth() + 1;
+        }
+
+        // Helper function to get currently selected year
+        function getCurrentSelectedYear() {
+            const yearSelect = document.getElementById('target-year-select');
+            return yearSelect ? parseInt(yearSelect.value) : new Date().getFullYear();
+        }
+
+        // Update current month/year display indicator
+        function updateCurrentMonthYearDisplay() {
+            const selectedMonth = getCurrentSelectedMonth();
+            const selectedYear = getCurrentSelectedYear();
+            const currentDate = new Date();
+            const currentMonth = currentDate.getMonth() + 1;
+            const currentYear = currentDate.getFullYear();
+            
+            // Update the current sheet name to include month/year info
+            const sheetNameElement = document.getElementById('current-sheet-name');
+            if (sheetNameElement && currentSheet) {
+                const isCurrentMonth = selectedMonth === currentMonth && selectedYear === currentYear;
+                const monthYearText = `${getMonthName(selectedMonth)} ${selectedYear}`;
+                const indicator = isCurrentMonth ? ' (Current Month)' : ' (Historical)';
+                sheetNameElement.textContent = `${currentSheet.name} - ${monthYearText}${indicator}`;
+            }
+            
+            // Update month/year indicator badge
+            const indicator = document.getElementById('month-year-indicator');
+            if (indicator) {
+                const isCurrentMonth = selectedMonth === currentMonth && selectedYear === currentYear;
+                
+                if (isCurrentMonth) {
+                    indicator.textContent = 'Current';
+                    indicator.style.background = 'var(--fc-neon-success)';
+                    indicator.style.color = 'var(--fc-dark-primary)';
+                    indicator.style.fontWeight = 'bold';
+                } else {
+                    indicator.textContent = 'Historical';
+                    indicator.style.background = 'var(--fc-neon-warning)';
+                    indicator.style.color = 'var(--fc-dark-primary)';
+                    indicator.style.fontWeight = 'bold';
+                }
+            }
+            
+            // Add visual indicator to month/year selectors
+            const monthSelect = document.getElementById('target-month-select');
+            const yearSelect = document.getElementById('target-year-select');
+            
+            if (monthSelect && yearSelect) {
+                const isCurrentMonth = selectedMonth === currentMonth && selectedYear === currentYear;
+                
+                if (isCurrentMonth) {
+                    monthSelect.style.border = '2px solid var(--fc-neon-success)';
+                    yearSelect.style.border = '2px solid var(--fc-neon-success)';
+                } else {
+                    monthSelect.style.border = '2px solid var(--fc-neon-warning)';
+                    yearSelect.style.border = '2px solid var(--fc-neon-warning)';
+                }
+            }
         }
 
         // Handle invitation token from URL
@@ -5860,9 +6018,19 @@
                 // Allow status change for now if permission check fails
             }
 
-            // Find process data
-            const processData = currentProcesses.find(p => p.id === processId);
+            // Find process data - check both old and new format
+            const processData = currentProcesses.find(p => 
+                p.id === processId || p.process_id === processId
+            );
             if (!processData) {
+                console.error('Process not found in currentProcesses:', {
+                    processId,
+                    availableProcesses: currentProcesses.map(p => ({
+                        id: p.id,
+                        process_id: p.process_id,
+                        name: p.short_name || p.process_short_name
+                    }))
+                });
                 showNotification('Process not found', 'error');
                 return;
             }
@@ -5964,74 +6132,61 @@
         // Update process status
         async function updateProcessStatus(processId, newStatus, note = '') {
             try {
-                const completedLate = newStatus === 'COMPLETED_LATE';
+                // Get current selected month and year for process execution tracking
+                const selectedMonth = getCurrentSelectedMonth();
+                const selectedYear = getCurrentSelectedYear();
                 
                 let result;
-                if (newStatus === 'COMPLETED_ON_TIME' || newStatus === 'COMPLETED_LATE') {
-                    result = await window.FlowCraftErrorHandler.markProcessCompleted(processId, note, completedLate);
-                } else if (newStatus === 'DELAYED_WITH_REASON') {
-                    if (!note.trim()) {
-                        showNotification('Please provide a reason for the delay', 'error');
-                        return;
-                    }
-                    result = await window.FlowCraftErrorHandler.markProcessDelayed(processId, note);
-                } else {
-                    // Reset to pending or other status - with enhanced error handling
-                    try {
-                        // Prepare update fields for reset status
-                        const updateFields = {
-                            status: newStatus,
-                            completed_at: null,
-                            completion_note: null,
-                            updated_at: new Date().toISOString()
-                        };
-                        
-                        result = await window.FlowCraftErrorHandler.executeSupabaseRequest(
-                            () => window.supabaseClient
-                                .from('processes')
-                                .update(updateFields)
-                                .eq('id', processId)
-                                .select(),
-                            { loadingMessage: 'Resetting status...' }
-                        );
-                    } catch (statusUpdateError) {
-                        console.warn('Status update failed, trying minimal update:', statusUpdateError);
-                        // Fallback: try updating only basic fields if status fields don't exist
-                        result = await window.FlowCraftErrorHandler.executeSupabaseRequest(
-                            () => window.supabaseClient
-                                .from('processes')
-                                .update({
-                                    updated_at: new Date().toISOString()
-                                })
-                                .eq('id', processId)
-                                .select(),
-                            { loadingMessage: 'Updating process...' }
-                        );
-                        
-                        // If even that fails, throw the original error
-                        if (!result?.data?.length) {
-                            throw statusUpdateError;
-                        }
-                        
-                        showNotification('Status reset completed (limited database support)', 'warning');
-                        // Still proceed with synchronization
-                    }
+                
+                if (newStatus === 'DELAYED_WITH_REASON' && !note.trim()) {
+                    showNotification('Please provide a reason for the delay', 'error');
+                    return;
                 }
+                
+                // First, get current status for history logging
+                const currentProcessData = currentProcesses.find(p => 
+                    p.process_id === processId || p.id === processId
+                );
+                const oldStatus = currentProcessData?.execution_status || currentProcessData?.status || 'PENDING';
+                
+                // Use the new process execution API for all status updates
+                result = await window.FlowCraftErrorHandler.updateProcessExecutionStatus(
+                    processId, 
+                    selectedYear, 
+                    selectedMonth, 
+                    newStatus, 
+                    note
+                );
 
-                if (result?.data?.length > 0 || result?.data) {
+                if (result?.data || result?.success) {
+                    // Log status change to history
+                    try {
+                        await window.FlowCraftErrorHandler.logProcessStatusChange(
+                            processId,
+                            oldStatus,
+                            newStatus,
+                            note
+                        );
+                    } catch (historyError) {
+                        console.warn('Could not log status change to history:', historyError);
+                        // Don't fail the main operation if history logging fails
+                    }
+                    
                     showNotification(`Process status updated to ${newStatus.replace('_', ' ')}`, 'success');
                     closeProcessStatusModal();
                     
-                    // Update the process data in memory
-                    const process = currentProcesses.find(p => p.id === processId);
-                    if (process) {
-                        process.status = newStatus;
-                        process.completion_note = note;
+                    // Update the process execution data in memory
+                    const processExecution = currentProcesses.find(p => p.process_id === processId || p.id === processId);
+                    if (processExecution) {
+                        processExecution.execution_status = newStatus;
+                        processExecution.completion_note = note;
+                        processExecution.updated_at = new Date().toISOString();
+                        
                         if (newStatus.includes('COMPLETED')) {
-                            process.completed_at = new Date().toISOString();
+                            processExecution.completed_at = new Date().toISOString();
                         } else if (newStatus === 'PENDING') {
-                            process.completed_at = null;
-                            process.completion_note = null;
+                            processExecution.completed_at = null;
+                            processExecution.completion_note = null;
                         }
                     }
                     
@@ -6042,9 +6197,11 @@
                                 type: 'PROCESS_STATUS_UPDATED',
                                 processId: processId,
                                 newStatus: newStatus,
-                                completionNote: newStatus === 'PENDING' ? null : note
+                                completionNote: newStatus === 'PENDING' ? null : note,
+                                month: selectedMonth,
+                                year: selectedYear
                             }, window.location.origin);
-                            console.log(`PostMessage sent to diagram: ${processId} -> ${newStatus}`);
+                            console.log(`PostMessage sent to diagram: ${processId} -> ${newStatus} (${selectedMonth}/${selectedYear})`);
                         } else {
                             console.warn('No diagram window found to notify (window.opener not available)');
                         }
@@ -6056,10 +6213,10 @@
                     loadProcesses();
                 } else {
                     console.error('Update result:', result);
-                    showNotification('Failed to update process status - check console for details', 'error');
+                    showNotification('Failed to update process execution status - check console for details', 'error');
                 }
             } catch (error) {
-                showNotification(error.message, 'error');
+                showNotification(error.message || 'Error updating process execution status', 'error');
                 console.error('Status update error:', error);
             }
         }

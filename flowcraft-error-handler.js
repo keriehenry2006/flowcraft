@@ -1659,30 +1659,228 @@ class FlowCraftErrorHandler {
         );
     }
 
-    /**
-     * Get dashboard statistics
-     */
-    async getDashboardStats(projectId) {
-        const result = await this.executeSupabaseRequest(
-            () => window.supabaseClient
-                .from('process_full')
-                .select('status')
-                .eq('project_id', projectId),
-            { loadingMessage: 'Loading statistics...' }
-        );
+    // =====================================================
+    // PROCESS EXECUTIONS API - NEW MONTHLY HISTORY SYSTEM
+    // =====================================================
 
+    /**
+     * Get process executions for a specific month
+     */
+    async getProcessExecutionsForMonth(sheetId, year, month) {
+        return await this.executeSupabaseRequest(
+            () => window.supabaseClient.rpc('get_process_executions_for_month', {
+                p_sheet_id: sheetId,
+                p_year: year,
+                p_month: month
+            }),
+            { loadingMessage: 'Loading monthly process executions...' }
+        );
+    }
+
+    /**
+     * Update process execution status for a specific month
+     */
+    async updateProcessExecutionStatus(processId, year, month, status, note = '', completedBy = null) {
+        return await this.executeSupabaseRequest(
+            () => window.supabaseClient.rpc('update_process_execution_status', {
+                p_process_id: processId,
+                p_year: year,
+                p_month: month,
+                p_status: status,
+                p_completion_note: note,
+                p_completed_by: completedBy
+            }),
+            { loadingMessage: 'Updating process execution...' }
+        );
+    }
+
+    /**
+     * Get process executions for calendar view
+     */
+    async getProcessExecutionsForCalendar(sheetId, year, month) {
+        return await this.executeSupabaseRequest(
+            () => window.supabaseClient.rpc('get_process_executions_for_month', {
+                p_sheet_id: sheetId,
+                p_year: year,
+                p_month: month
+            }),
+            { loadingMessage: 'Loading calendar executions...' }
+        );
+    }
+
+    /**
+     * Get process execution history for a specific process
+     */
+    async getProcessExecutionHistory(processId) {
+        return await this.executeSupabaseRequest(
+            () => window.supabaseClient
+                .from('process_executions')
+                .select('*')
+                .eq('process_id', processId)
+                .order('year', { ascending: false })
+                .order('month', { ascending: false }),
+            { loadingMessage: 'Loading execution history...' }
+        );
+    }
+
+    /**
+     * Get execution statistics for a month
+     */
+    async getMonthlyExecutionStats(sheetId, year, month) {
+        const result = await this.getProcessExecutionsForMonth(sheetId, year, month);
+        
         if (!result.data) return null;
 
         const stats = {
             total: result.data.length,
-            pending: result.data.filter(p => p.status === 'PENDING').length,
-            completed_on_time: result.data.filter(p => p.status === 'COMPLETED_ON_TIME').length,
-            completed_late: result.data.filter(p => p.status === 'COMPLETED_LATE').length,
-            overdue: result.data.filter(p => p.status === 'OVERDUE').length,
-            delayed: result.data.filter(p => p.status === 'DELAYED_WITH_REASON').length
+            pending: result.data.filter(p => (p.execution_status || 'PENDING') === 'PENDING').length,
+            completed_on_time: result.data.filter(p => p.execution_status === 'COMPLETED_ON_TIME').length,
+            completed_late: result.data.filter(p => p.execution_status === 'COMPLETED_LATE').length,
+            overdue: result.data.filter(p => p.execution_status === 'OVERDUE').length,
+            delayed: result.data.filter(p => p.execution_status === 'DELAYED_WITH_REASON').length
         };
 
         return stats;
+    }
+
+    /**
+     * Mark process execution as completed for current month
+     */
+    async markProcessExecutionCompleted(processId, note = '', completedLate = false) {
+        const currentDate = new Date();
+        const year = currentDate.getFullYear();
+        const month = currentDate.getMonth() + 1;
+        const status = completedLate ? 'COMPLETED_LATE' : 'COMPLETED_ON_TIME';
+        
+        // Get current user
+        const { data: { user } } = await window.supabaseClient.auth.getUser();
+        const userId = user?.id;
+
+        return await this.updateProcessExecutionStatus(
+            processId, year, month, status, note, userId
+        );
+    }
+
+    /**
+     * Mark process execution as delayed for current month
+     */
+    async markProcessExecutionDelayed(processId, reason) {
+        const currentDate = new Date();
+        const year = currentDate.getFullYear();
+        const month = currentDate.getMonth() + 1;
+        
+        // Get current user
+        const { data: { user } } = await window.supabaseClient.auth.getUser();
+        const userId = user?.id;
+
+        return await this.updateProcessExecutionStatus(
+            processId, year, month, 'DELAYED_WITH_REASON', reason, userId
+        );
+    }
+
+    /**
+     * Reset process execution to pending for current month
+     */
+    async resetProcessExecution(processId) {
+        const currentDate = new Date();
+        const year = currentDate.getFullYear();
+        const month = currentDate.getMonth() + 1;
+
+        return await this.updateProcessExecutionStatus(
+            processId, year, month, 'PENDING', ''
+        );
+    }
+
+    /**
+     * Log process status change to history
+     */
+    async logProcessStatusChange(processId, oldStatus, newStatus, changeReason = '') {
+        // Get current user
+        const { data: { user } } = await window.supabaseClient.auth.getUser();
+        const userId = user?.id;
+
+        return await this.executeSupabaseRequest(
+            () => window.supabaseClient
+                .from('process_status_history')
+                .insert({
+                    process_id: processId,
+                    old_status: oldStatus,
+                    new_status: newStatus,
+                    changed_by: userId,
+                    change_reason: changeReason
+                }),
+            { loadingMessage: 'Logging status change...', showLoading: false }
+        );
+    }
+
+    /**
+     * Get process status history
+     */
+    async getProcessStatusHistory(processId) {
+        return await this.executeSupabaseRequest(
+            () => window.supabaseClient
+                .from('process_status_history')
+                .select('*')
+                .eq('process_id', processId)
+                .order('created_at', { ascending: false }),
+            { loadingMessage: 'Loading status history...', showLoading: false }
+        );
+    }
+
+    /**
+     * Get dashboard statistics (updated for monthly executions)
+     */
+    async getDashboardStats(projectId, year = null, month = null) {
+        // If no year/month specified, use current month
+        if (!year || !month) {
+            const currentDate = new Date();
+            year = currentDate.getFullYear();
+            month = currentDate.getMonth() + 1;
+        }
+
+        // Get all sheets for the project
+        const sheetsResult = await this.executeSupabaseRequest(
+            () => window.supabaseClient
+                .from('sheets')
+                .select('id')
+                .eq('project_id', projectId),
+            { showLoading: false }
+        );
+
+        if (!sheetsResult.data || sheetsResult.data.length === 0) {
+            return {
+                total: 0,
+                pending: 0,
+                completed_on_time: 0,
+                completed_late: 0,
+                overdue: 0,
+                delayed: 0
+            };
+        }
+
+        // Get execution stats for each sheet and combine
+        let totalStats = {
+            total: 0,
+            pending: 0,
+            completed_on_time: 0,
+            completed_late: 0,
+            overdue: 0,
+            delayed: 0
+        };
+
+        for (const sheet of sheetsResult.data) {
+            const stats = await this.getMonthlyExecutionStats(sheet.id, year, month);
+            if (stats) {
+                totalStats.total += stats.total;
+                totalStats.pending += stats.pending;
+                totalStats.completed_on_time += stats.completed_on_time;
+                totalStats.completed_late += stats.completed_late;
+                totalStats.overdue += stats.overdue;
+                totalStats.delayed += stats.delayed;
+            }
+        }
+
+        return totalStats;
     }
 
     /**

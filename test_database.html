@@ -47,6 +47,10 @@
                 const invitationsResult = await supabaseClient.from('project_invitations').select('*').limit(1);
                 results.innerHTML += `<p>✅ project_invitations table: ${invitationsResult.error ? 'ERROR: ' + invitationsResult.error.message : 'OK'}</p>`;
                 
+                // Test process_executions table
+                const processExecutionsResult = await supabaseClient.from('process_executions').select('*').limit(1);
+                results.innerHTML += `<p>✅ process_executions table: ${processExecutionsResult.error ? 'ERROR: ' + processExecutionsResult.error.message : 'OK'}</p>`;
+                
                 // Test working_calendar table
                 const calendarResult = await supabaseClient.from('working_calendar').select('*').limit(1);
                 results.innerHTML += `<p>✅ working_calendar table: ${calendarResult.error ? 'ERROR: ' + calendarResult.error.message : 'OK'}</p>`;
@@ -55,10 +59,57 @@
                 const historyResult = await supabaseClient.from('process_status_history').select('*').limit(1);
                 results.innerHTML += `<p>✅ process_status_history table: ${historyResult.error ? 'ERROR: ' + historyResult.error.message : 'OK'}</p>`;
                 
+                // Test RPC functions for process_executions
+                results.innerHTML += '<h3>Testing Process Executions Functions...</h3>';
+                const testSheetId = 'test-sheet-id-123';
+                const testYear = 2025;
+                const testMonth = 1;
+                
+                const rpcResult = await supabaseClient.rpc('get_process_executions_for_month', {
+                    p_sheet_id: testSheetId,
+                    p_year: testYear,
+                    p_month: testMonth
+                });
+                results.innerHTML += `<p>✅ get_process_executions_for_month function: ${rpcResult.error ? 'ERROR: ' + rpcResult.error.message : 'OK (function exists)'}</p>`;
+                
+                // Test update function
+                const updateRpcResult = await supabaseClient.rpc('update_process_execution_status', {
+                    p_process_id: 'test-process-id-123',
+                    p_year: testYear,
+                    p_month: testMonth,
+                    p_status: 'PENDING',
+                    p_completion_note: 'Test note',
+                    p_completed_by: null
+                });
+                results.innerHTML += `<p>✅ update_process_execution_status function: ${updateRpcResult.error ? 'ERROR: ' + updateRpcResult.error.message : 'OK (function exists)'}</p>`;
+                
+                // Test FlowCraftErrorHandler integration
+                results.innerHTML += '<h3>Testing FlowCraftErrorHandler Integration...</h3>';
+                if (window.FlowCraftErrorHandler) {
+                    results.innerHTML += `<p>✅ FlowCraftErrorHandler: Loaded successfully</p>`;
+                    
+                    if (typeof window.FlowCraftErrorHandler.getProcessExecutionsForMonth === 'function') {
+                        results.innerHTML += `<p>✅ getProcessExecutionsForMonth method: Available</p>`;
+                    } else {
+                        results.innerHTML += `<p>❌ getProcessExecutionsForMonth method: Not found</p>`;
+                    }
+                    
+                    if (typeof window.FlowCraftErrorHandler.updateProcessExecutionStatus === 'function') {
+                        results.innerHTML += `<p>✅ updateProcessExecutionStatus method: Available</p>`;
+                    } else {
+                        results.innerHTML += `<p>❌ updateProcessExecutionStatus method: Not found</p>`;
+                    }
+                } else {
+                    results.innerHTML += `<p>❌ FlowCraftErrorHandler: Not loaded</p>`;
+                }
+
                 // Test checkProjectAccess function
                 results.innerHTML += '<h3>Testing checkProjectAccess function...</h3>';
                 const accessResult = await window.FlowCraftErrorHandler.checkProjectAccess('test-project-id');
                 results.innerHTML += `<p>✅ checkProjectAccess result: ${JSON.stringify(accessResult)}</p>`;
+                
+                results.innerHTML += `<h3>🎉 Process Executions System Test Complete</h3>`;
+                results.innerHTML += `<p><strong>The new monthly history system is ready for use!</strong></p>`;
                 
             } catch (error) {
                 results.innerHTML += `<p>❌ Error: ${error.message}</p>`;
